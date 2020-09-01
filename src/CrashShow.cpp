@@ -533,19 +533,19 @@ void DoCrashShow(PEXCEPTION_POINTERS eps)
 {
 	if (!eps)
 	{
-		::MessageBoxA(0, "Invaild eps.", "MzCrashRpt", 0);
+		::MessageBoxA(0, "Invaild eps.", CRASH_MSGBOX_CAPTION, 0);
 	}
 
 	hCurrentProcess = ::GetCurrentProcess();
-	std::string FileName = GenDumpFileName();
+	std::string curFileName = GenDumpFileName();
 
-	std::string DmpFileName = FileName + ".dmp";
-	WriteDmp(DmpFileName, eps);
+	std::string dmpFileName = curFileName + ".dmp";
+	WriteDmp(dmpFileName, eps);
 
-	std::string LogFileName = FileName + ".log";
-	WriteLog(LogFileName, eps);
+	std::string logFileName = curFileName + ".log";
+	WriteLog(logFileName, eps);
 
-	MessageBoxA(0, "Click OK to open the crash log file.", "MzCrashRpt", 0);
+	MessageBoxA(0, "Click OK to open the crash log file.", CRASH_MSGBOX_CAPTION, 0);
 
-	ShellExecuteA(0, "open", "exploer.exe", ("/select, " + LogFileName).c_str(), nullptr, SW_SHOWNORMAL);
+	ShellExecuteA(0, "open", "explorer.exe", ("/select," + logFileName).c_str(), nullptr, SW_SHOWNORMAL);
 }

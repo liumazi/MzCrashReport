@@ -16,7 +16,7 @@ bool InitCrashReport()
 	bool ret = SetupCrashHanders();
 	if (!ret)
 	{
-		::MessageBoxA(0, "InitCrashReport failed.", "MzCrashRpt", 0);
+		::MessageBoxA(0, "InitCrashReport failed.", CRASH_MSGBOX_CAPTION, 0);
 	}
 	return ret;
 }

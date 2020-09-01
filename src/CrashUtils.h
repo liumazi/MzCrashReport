@@ -8,4 +8,6 @@
 
 #include <string>
 
+#define CRASH_MSGBOX_CAPTION "MzCrashReport"
+
 std::string GenDumpFileName();
