@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <windows.h>
+
 static const char* const rgBaseType[] =
 {
 	" <user defined> ",             // btNoType = 0,
@@ -43,3 +45,5 @@ static const char* const rgBaseType[] =
 };
 
 bool InitCrashReport();
+
+void SetMainWindow(HWND hWnd);

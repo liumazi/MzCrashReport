@@ -531,9 +531,11 @@ bool WriteLog(const std::string& filename, PEXCEPTION_POINTERS eps)
 
 void DoCrashShow(PEXCEPTION_POINTERS eps)
 {
+	extern HWND hMainWindow;
+
 	if (!eps)
 	{
-		::MessageBoxA(0, "Invaild eps.", CRASH_MSGBOX_CAPTION, 0);
+		::MessageBoxA(hMainWindow, "Invaild eps.", CRASH_MSGBOX_CAPTION, 0);
 	}
 
 	hCurrentProcess = ::GetCurrentProcess();
