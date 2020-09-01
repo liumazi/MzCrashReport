@@ -9,7 +9,6 @@
 #include "CrashReport.h"
 #include "CrashUtils.h"
 #include "CrashHandler.h"
-#include "cvconst.h"
 
 // 
 bool InitCrashReport()
