@@ -102,7 +102,7 @@ std::string DumpSymbolName(DWORD dwLevel, const STACKFRAME& sf)
 	if (!::SymFromAddr(hCurrentProcess, dwAddress, &symDisplacement, pSymbol))
 	{
 		// LOG_LAST_ERROR();
-		sprintf_s(FmtBuffer, "%08X, SymFromAddr Failed \n", dwAddress);
+		sprintf_s(FmtBuffer, "%08X, SymFromAddr Failed \r\n", dwAddress);
 		return FmtBuffer;
 	}
 
@@ -112,13 +112,13 @@ std::string DumpSymbolName(DWORD dwLevel, const STACKFRAME& sf)
 	{
 		// it is normal that we don't have source info for some symbols,
 		// notably all the ones from the system DLLs...
-		// sprintf_s(FmtBuffer, "SymGetLineFromAddr fail 0x%08x\n", dwAddress);
+		// sprintf_s(FmtBuffer, "SymGetLineFromAddr fail 0x%08x\r\n", dwAddress);
 		// return "b";
-		sprintf_s(FmtBuffer, "%08I64X, %s()\n", pSymbol->Address, pSymbol->Name);
+		sprintf_s(FmtBuffer, "%08I64X, %s()\r\n", pSymbol->Address, pSymbol->Name);
 		return FmtBuffer;
 	}
 
-	sprintf_s(FmtBuffer, "%08I64X, %s(), line %u in\n %s\n", pSymbol->Address, pSymbol->Name, line.LineNumber, line.FileName);
+	sprintf_s(FmtBuffer, "%08I64X, %s(), line %u in\r\n %s\r\n", pSymbol->Address, pSymbol->Name, line.LineNumber, line.FileName);
 	return FmtBuffer;
 }
 
@@ -392,7 +392,7 @@ std::string DumpSymbolParam(STACKFRAME& sf)
 	{
 		// for symbols from kernel DLL we might not have access to their
 		// address, this is not a real error
-		sprintf_s(FmtBuffer, "%08X, SymSetContext fail\n", dwSymAddr);
+		sprintf_s(FmtBuffer, "%08X, SymSetContext fail\r\n", dwSymAddr);
 		return FmtBuffer;
 	}
 
@@ -404,7 +404,7 @@ std::string DumpSymbolParam(STACKFRAME& sf)
 		EnumSymbolsProcCallback,
 		(PVOID)&uc))    // data parameter for this callback
 	{
-		sprintf_s(FmtBuffer, "%08X, SymSetContext fail\n", dwSymAddr);
+		sprintf_s(FmtBuffer, "%08X, SymSetContext fail\r\n", dwSymAddr);
 		return FmtBuffer;
 	}
 
@@ -468,7 +468,7 @@ std::string WalkCallStack(CONTEXT ctx, size_t skip, size_t depth = 20)
 		{
 			ret.append(DumpSymbolName(nLevel - skip, sf));
 			ret.append(DumpSymbolParam(sf));
-			ret.append("\n");
+			ret.append("\r\n");
 		}
 	}
 
@@ -490,30 +490,30 @@ bool WriteLog(const std::string& filename, PEXCEPTION_POINTERS eps)
 			tmpBuffer[0] = 0;
 		}
 	}
-	AppendCrashLog("ModuleFileName: %s \n\n", tmpBuffer);
+	AppendCrashLog("ModuleFileName: %s \r\n\r\n", tmpBuffer);
 
-	AppendCrashLog("CurrentThreadId: %d\n\n", GetCurrentThreadId());
+	AppendCrashLog("CurrentThreadId: %d\r\n\r\n", GetCurrentThreadId());
 
-	AppendCrashLog("ExceptionAddress: 0x%08X\n", (DWORD)(addr));
+	AppendCrashLog("ExceptionAddress: 0x%08X\r\n", (DWORD)(addr));
 
 	if (code == EXCEPTION_ACCESS_VIOLATION)
 	{
 		ULONG_PTR* ExceptionInformation = eps->ExceptionRecord->ExceptionInformation;
 		if (ExceptionInformation[0])
 		{
-			AppendCrashLog("Failed to write address 0x%08X\n", ExceptionInformation[1]);
+			AppendCrashLog("Failed to write address 0x%08X\r\n", ExceptionInformation[1]);
 		}
 		else
 		{
-			AppendCrashLog("Failed to read address 0x%08X\n", ExceptionInformation[1]);
+			AppendCrashLog("Failed to read address 0x%08X\r\n", ExceptionInformation[1]);
 		}
 	}
-	AppendCrashLog("\n");
+	AppendCrashLog("\r\n");
 
-	AppendCrashLog("ExceptionCode: 0x%08X (%s)\n\n", code, ExceptionCodeToString(code).c_str());
+	AppendCrashLog("ExceptionCode: 0x%08X (%s)\r\n\r\n", code, ExceptionCodeToString(code).c_str());
 
 	/*
-	Rpt.append(("Call Stack:\n------------------------------------------------------\n"));
+	Rpt.append(("Call Stack:\r\n------------------------------------------------------\r\n"));
 
 	if (!::SymInitialize(CurrentProcess, nullptr, TRUE))
 	{
