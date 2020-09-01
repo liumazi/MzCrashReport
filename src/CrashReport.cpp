@@ -8,19 +8,12 @@
 #include "CrashUtils.h"
 #include "CrashHandler.h"
 
-HWND hMainWindow = 0;
-
 bool InitCrashReport()
 {
 	bool ret = SetupCrashHanders();
 	if (!ret)
 	{
-		::MessageBoxA(hMainWindow, "InitCrashReport failed.", CRASH_MSGBOX_CAPTION, 0);
+		::MessageBoxA(GetActiveWindow(), "InitCrashReport failed.", CRASH_MSGBOX_CAPTION, 0);
 	}
 	return ret;
-}
-
-void SetMainWindow(HWND hWnd)
-{
-	hMainWindow = hWnd;
 }

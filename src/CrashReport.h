@@ -45,5 +45,3 @@ static const char* const rgBaseType[] =
 };
 
 bool InitCrashReport();
-
-void SetMainWindow(HWND hWnd);
