@@ -5,7 +5,7 @@
 //
 
 #include "CrashHandler.h"
-#include "CrashDump.h"
+#include "CrashShow.h"
 
 LPTOP_LEVEL_EXCEPTION_FILTER _SEH_Handler = nullptr;
 
