@@ -4,34 +4,41 @@
 // Created by liuliu.mz on 20-08-28
 //
 
-void SaveDump(struct _EXCEPTION_POINTERS *ExceptionInfo)
+#include "CrashLog.h"
+
+HANDLE hLogFile = 0;
+
+#define LOG_BUFFER_LEN 1024
+char logBuffer[LOG_BUFFER_LEN] = {};
+
+bool CrashLogCreate(const std::string& filename)
 {
-	HANDLE hFile = ::CreateFileA(
-		"mz.dmp",
+	if (hLogFile)
+	{
+		CloseHandle(hLogFile);
+	}
+
+	hLogFile = ::CreateFileA(
+		filename.c_str(),
 		GENERIC_WRITE,
 		0,
-		NULL,
+		nullptr,
 		CREATE_ALWAYS,
 		FILE_ATTRIBUTE_NORMAL,
-		NULL);
+		0);
 
-	if (INVALID_HANDLE_VALUE != hFile)
+	return hLogFile != 0;
+}
+
+bool CrashLogClose()
+{
+	bool ret = false;
+
+	if (hLogFile)
 	{
-		PMINIDUMP_EXCEPTION_INFORMATION pInfo = nullptr;
-		MINIDUMP_EXCEPTION_INFORMATION info;
-		info.ThreadId = ::GetCurrentThreadId();
-		info.ExceptionPointers = ExceptionInfo;
-		info.ClientPointers = FALSE;
-		pInfo = &info;
-
-		::MiniDumpWriteDump(
-			CurrentProcess,
-			::GetCurrentProcessId(),
-			hFile,
-			MiniDumpWithoutOptionalData,
-			pInfo,
-			NULL,
-			NULL);
-		::CloseHandle(hFile);
+		ret = CloseHandle(hLogFile) != 0;
+		hLogFile = 0;
 	}
+
+	return ret;
 }

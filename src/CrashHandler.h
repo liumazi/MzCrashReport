@@ -5,3 +5,5 @@
 //
 
 #pragma once
+
+bool SetupHanders();

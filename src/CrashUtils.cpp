@@ -25,16 +25,16 @@ std::string GenDumpFileName()
 		PathLen -= 4;
 	}
 
-	time_t UnixTime = time(NULL);
-	tm* LocalTime = localtime(&UnixTime);
+	time_t utime = time(NULL);
+	tm* ltime = localtime(&utime);
 
 	sprintf(&PathBuff[PathLen], "-%04u-%02u-%02u-%02u%02u%02u",
-		LocalTime->tm_year + 1900, 
-		LocalTime->tm_mon + 1,
-		LocalTime->tm_mday,
-		LocalTime->tm_hour,
-		LocalTime->tm_min,
-		LocalTime->tm_sec);
+		ltime->tm_year + 1900,
+		ltime->tm_mon + 1,
+		ltime->tm_mday,
+		ltime->tm_hour,
+		ltime->tm_min,
+		ltime->tm_sec);
 
 	return PathBuff;
 }

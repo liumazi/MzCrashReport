@@ -42,4 +42,4 @@ static const char* const rgBaseType[] =
 	" HRESULT "                     // btHresult = 31
 };
 
-void InitCrashReport();
+bool InitCrashReport();
