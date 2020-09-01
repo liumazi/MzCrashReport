@@ -547,7 +547,7 @@ void DoCrashShow(PEXCEPTION_POINTERS eps)
 	std::string logFileName = curFileName + ".log";
 	WriteLog(logFileName, eps);
 
-	MessageBoxA(0, "Click OK to open the crash log file.", CRASH_MSGBOX_CAPTION, 0);
+	MessageBoxA(hMainWindow, "Click OK to open the crash log file.", CRASH_MSGBOX_CAPTION, 0);
 
 	ShellExecuteA(0, "open", "explorer.exe", ("/select," + logFileName).c_str(), nullptr, SW_SHOWNORMAL);
 }
