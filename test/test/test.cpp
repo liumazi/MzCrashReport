@@ -6,6 +6,7 @@
 
 int _tmain(int argc, _TCHAR* argv[])
 {
+	InitCrashReport();
 	return 0;
 }
 

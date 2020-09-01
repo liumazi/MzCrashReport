@@ -11,7 +11,7 @@ HANDLE hLogFile = 0;
 #define LOG_BUFFER_LEN 1024
 char logBuffer[LOG_BUFFER_LEN] = {};
 
-bool CrashLogCreate(const std::string& filename)
+bool CreateCrashLog(const std::string& filename)
 {
 	if (hLogFile)
 	{
@@ -30,7 +30,7 @@ bool CrashLogCreate(const std::string& filename)
 	return hLogFile != 0;
 }
 
-bool CrashLogClose()
+bool CloseCrashLog()
 {
 	bool ret = false;
 

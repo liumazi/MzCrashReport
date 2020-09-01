@@ -9,4 +9,4 @@
 #include <string>
 #include <windows.h>
 
-void CrashDumpShow(PEXCEPTION_POINTERS eps);
+void DoCrashShow(PEXCEPTION_POINTERS eps);

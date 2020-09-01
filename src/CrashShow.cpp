@@ -477,7 +477,7 @@ std::string WalkCallStack(CONTEXT ctx, size_t skip, size_t depth = 20)
 
 bool WriteLog(const std::string& filename, PEXCEPTION_POINTERS eps)
 {
-	CrashLogCreate(filename);
+	CreateCrashLog(filename);
 
 	tmpBuffer[0] = 0;
 	DWORD code = eps->ExceptionRecord->ExceptionCode;
@@ -490,27 +490,27 @@ bool WriteLog(const std::string& filename, PEXCEPTION_POINTERS eps)
 			tmpBuffer[0] = 0;
 		}
 	}
-	CrashLogAppend("ModuleFileName: %s \n\n", tmpBuffer);
+	AppendCrashLog("ModuleFileName: %s \n\n", tmpBuffer);
 
-	CrashLogAppend("CurrentThreadId: %d\n\n", GetCurrentThreadId());
+	AppendCrashLog("CurrentThreadId: %d\n\n", GetCurrentThreadId());
 
-	CrashLogAppend("ExceptionAddress: 0x%08X\n", (DWORD)(addr));
+	AppendCrashLog("ExceptionAddress: 0x%08X\n", (DWORD)(addr));
 
 	if (code == EXCEPTION_ACCESS_VIOLATION)
 	{
 		ULONG_PTR* ExceptionInformation = eps->ExceptionRecord->ExceptionInformation;
 		if (ExceptionInformation[0])
 		{
-			CrashLogAppend("Failed to write address 0x%08X\n", ExceptionInformation[1]);
+			AppendCrashLog("Failed to write address 0x%08X\n", ExceptionInformation[1]);
 		}
 		else
 		{
-			CrashLogAppend("Failed to read address 0x%08X\n", ExceptionInformation[1]);
+			AppendCrashLog("Failed to read address 0x%08X\n", ExceptionInformation[1]);
 		}
 	}
-	CrashLogAppend("\n");
+	AppendCrashLog("\n");
 
-	CrashLogAppend("ExceptionCode: 0x%08X (%s)\n\n", code, ExceptionCodeToString(code).c_str());
+	AppendCrashLog("ExceptionCode: 0x%08X (%s)\n\n", code, ExceptionCodeToString(code).c_str());
 
 	/*
 	Rpt.append(("Call Stack:\n------------------------------------------------------\n"));
@@ -524,12 +524,12 @@ bool WriteLog(const std::string& filename, PEXCEPTION_POINTERS eps)
 		Rpt.append(WalkCallStack(*eps->ContextRecord, 0));
 	}
 	*/
-	CrashLogClose();
+	CloseCrashLog();
 
 	return true;
 }
 
-void CrashDumpShow(PEXCEPTION_POINTERS eps)
+void DoCrashShow(PEXCEPTION_POINTERS eps)
 {
 	if (!eps)
 	{

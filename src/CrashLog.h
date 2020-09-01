@@ -9,10 +9,10 @@
 #include <windows.h>
 #include <string>
 
-bool CrashLogCreate(const std::string& filename);
+bool CreateCrashLog(const std::string& filename);
 
 template <typename... T>
-bool CrashLogAppend(const char* format, T... args)
+bool AppendCrashLog(const char* format, T... args)
 {
 #define LOG_BUFFER_LEN 1024
 	extern char logBuffer[LOG_BUFFER_LEN];
@@ -32,4 +32,4 @@ bool CrashLogAppend(const char* format, T... args)
 	return false;
 }
 
-bool CrashLogClose();
+bool CloseCrashLog();

@@ -11,12 +11,12 @@ LPTOP_LEVEL_EXCEPTION_FILTER _SEH_Handler = nullptr;
 
 LONG WINAPI SEH_Handler(_In_ PEXCEPTION_POINTERS eps)
 {
-	CrashDumpShow(eps);
+	DoCrashShow(eps);
 
 	return EXCEPTION_EXECUTE_HANDLER; // ÒÑ±¨¸æ ÍË°É
 }
 
-bool SetupHanders()
+bool SetupCrashHanders()
 {
 	_SEH_Handler = SetUnhandledExceptionFilter(SEH_Handler);
 

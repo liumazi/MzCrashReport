@@ -6,4 +6,4 @@
 
 #pragma once
 
-bool SetupHanders();
+bool SetupCrashHanders();
