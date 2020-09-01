@@ -2,7 +2,7 @@
 //
 
 #include "stdafx.h"
-
+#include "CrashReport.h"
 
 int _tmain(int argc, _TCHAR* argv[])
 {
