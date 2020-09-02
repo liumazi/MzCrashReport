@@ -312,20 +312,13 @@ bool FormatSymbolValue(PSYMBOL_INFO pSym, STACKFRAME* sf, char* pszBuffer, unsig
 	}
 
 	return true;
-}
-
-struct UserContext
-{
-	STACKFRAME* sf;
-	std::string ret;
-};
+}*/
 
 char szBuffer[2048];
 
-BOOL CALLBACK EnumSymbolsProcCallback(PSYMBOL_INFO pSymInfo, ULONG SymSize, PVOID userContext)
+BOOL CALLBACK EnumSymbolsProcCallback(PSYMBOL_INFO pSymInfo, ULONG SymSize, PVOID sf)
 {
-	UserContext* uc = (UserContext*)userContext;
-
+	/*
 	// we're only interested in parameters and local variables
 	if (pSymInfo->Flags & SYMF_PARAMETER || pSymInfo->Flags & SYMF_LOCAL)
 	{
@@ -341,44 +334,38 @@ BOOL CALLBACK EnumSymbolsProcCallback(PSYMBOL_INFO pSymInfo, ULONG SymSize, PVOI
 		{
 		}
 	}
-
+	*/
 	// return true to continue enumeration, false would have stopped it
 	return TRUE;
 }
 
-std::string DumpSymbolParam(STACKFRAME& sf)
+void RetrieveSymbolParam(const STACKFRAME& sf)
 {
-	UserContext uc;
-
-	DWORD dwSymAddr = sf.AddrPC.Offset;
-	DWORD dwAddrFrame = sf.AddrFrame.Offset;
+	DWORD dwAddrPC = sf.AddrPC.Offset;
 
 	// use SymSetContext to get just the locals/params for this frame
 
 	IMAGEHLP_STACK_FRAME imagehlpStackFrame = {};
-	imagehlpStackFrame.InstructionOffset = dwSymAddr;
-	if (!::SymSetContext(CurrentProcess, &imagehlpStackFrame, 0))
+	imagehlpStackFrame.InstructionOffset = dwAddrPC;
+	if (!::SymSetContext(hCurrentProcess, &imagehlpStackFrame, 0))
 	{
 		// for symbols from kernel DLL we might not have access to their
 		// address, this is not a real error
-		sprintf_s(FmtBuffer, "%08X, SymSetContext fail\r\n", dwSymAddr);
-		return FmtBuffer;
+		AppendCrashLog("%08X, SymSetContext fail\r\n", dwAddrPC);
+		return;
 	}
 
-	uc.sf = &sf;
 	if (!::SymEnumSymbols(
-		CurrentProcess,
+		hCurrentProcess,
 		NULL,           // DLL base: use current context
 		NULL,           // no mask, get all symbols
 		EnumSymbolsProcCallback,
-		(PVOID)&uc))    // data parameter for this callback
+		(PVOID)&sf))    // data parameter for this callback
 	{
-		sprintf_s(FmtBuffer, "%08X, SymSetContext fail\r\n", dwSymAddr);
-		return FmtBuffer;
+		AppendCrashLog("%08X, SymSetContext fail\r\n", dwAddrPC);
+		return;
 	}
-
-	return uc.ret;
-}*/
+}
 
 void RetrieveSymbolName(const STACKFRAME& sf)
 {
@@ -402,11 +389,11 @@ void RetrieveSymbolName(const STACKFRAME& sf)
 	{
 		// it is normal that we don't have source info for some symbols,
 		// notably all the ones from the system DLLs...
-		AppendCrashLog("%08I64X, %s()\r\n", pSymbol->Address, pSymbol->Name);
+		AppendCrashLog("%08X, %s()\r\n", dwAddress/*pSymbol->Address*/, pSymbol->Name); // 08I64X
 		return;
 	}
 
-	AppendCrashLog("%08I64X, %s(), line %u in\r\n  %s\r\n", pSymbol->Address, pSymbol->Name, line.LineNumber, line.FileName);
+	AppendCrashLog("%08X, %s(), line %u in\r\n  %s\r\n", dwAddress/*pSymbol->Address*/, pSymbol->Name, line.LineNumber, line.FileName); // 08I64X
 }
 
 void WalkCrashCallStack(CONTEXT ct, size_t skip = 0, size_t depth = 20)
@@ -462,7 +449,7 @@ void WalkCrashCallStack(CONTEXT ct, size_t skip = 0, size_t depth = 20)
 		// if (nLevel >= skip)
 		{
 			RetrieveSymbolName(sf);
-			//ret.append(DumpSymbolParam(sf));
+			//RetrieveSymbolParam(sf);
 			AppendCrashLog("\r\n");
 		}
 	}
