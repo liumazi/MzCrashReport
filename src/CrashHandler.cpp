@@ -7,7 +7,7 @@
 #include "CrashHandler.h"
 #include "CrashShow.h"
 
-LPTOP_LEVEL_EXCEPTION_FILTER _SEH_Handler = nullptr;
+static LPTOP_LEVEL_EXCEPTION_FILTER _SEH_Handler = nullptr;
 
 LONG WINAPI SEH_Handler(_In_ PEXCEPTION_POINTERS eps)
 {

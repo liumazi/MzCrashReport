@@ -4,6 +4,8 @@
 // Created by liuliu.mz on 20-08-26
 //
 
+#include <windows.h>
+
 #include "CrashReport.h"
 #include "CrashUtils.h"
 #include "CrashHandler.h"

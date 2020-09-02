@@ -6,38 +6,36 @@
 
 #include "CrashLog.h"
 
-HANDLE hLogFile = 0;
-
-#define LOG_BUFFER_LEN 1024
-char logBuffer[LOG_BUFFER_LEN] = {};
+HANDLE hCrashLogFile = 0;
+char szCrashLogBuffer[CRASH_LOG_BUFFER_LEN] = {};
 
 bool CreateCrashLog(const std::string& filename)
 {
-	if (hLogFile)
+	if (hCrashLogFile)
 	{
-		CloseHandle(hLogFile);
+		CloseHandle(hCrashLogFile);
 	}
 
-	hLogFile = ::CreateFileA(
+	hCrashLogFile = ::CreateFileA(
 		filename.c_str(),
 		GENERIC_WRITE,
 		0,
 		nullptr,
 		CREATE_ALWAYS,
 		FILE_ATTRIBUTE_NORMAL,
-		0);
+		NULL);
 
-	return hLogFile != 0;
+	return hCrashLogFile != NULL;
 }
 
 bool CloseCrashLog()
 {
 	bool ret = false;
 
-	if (hLogFile)
+	if (hCrashLogFile)
 	{
-		ret = CloseHandle(hLogFile) != 0;
-		hLogFile = 0;
+		ret = CloseHandle(hCrashLogFile) != FALSE;
+		hCrashLogFile = 0;
 	}
 
 	return ret;

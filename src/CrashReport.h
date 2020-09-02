@@ -6,6 +6,4 @@
 
 #pragma once
 
-#include <windows.h>
-
 bool InitCrashReport();

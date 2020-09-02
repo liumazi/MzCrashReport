@@ -12,8 +12,8 @@
 #include "CrashUtils.h"
 #include "CrashLog.h"
 
-HANDLE hCurrentProcess = 0;
-char tmpBuffer[1024] = {};
+static HANDLE hCurrentProcess = 0;
+static CHAR tempBuffer[1024] = {};
 
 bool WriteDmp(const std::string& filename, PEXCEPTION_POINTERS eps)
 {
@@ -24,7 +24,7 @@ bool WriteDmp(const std::string& filename, PEXCEPTION_POINTERS eps)
 		nullptr,
 		CREATE_ALWAYS,
 		FILE_ATTRIBUTE_NORMAL,
-		0);
+		NULL);
 
 	if (INVALID_HANDLE_VALUE != hFile)
 	{
@@ -41,7 +41,7 @@ bool WriteDmp(const std::string& filename, PEXCEPTION_POINTERS eps)
 			MiniDumpNormal,
 			&dumpInfo,
 			nullptr,
-			nullptr) != 0;
+			nullptr) != FALSE;
 
 		::CloseHandle(hFile);
 
@@ -83,9 +83,9 @@ std::string ExceptionCodeToString(DWORD ecode)
 
 	// If not one of the "known" exceptions, try to get the string
 	// from NTDLL.DLL's message table.
-	FormatMessageA(FORMAT_MESSAGE_IGNORE_INSERTS | FORMAT_MESSAGE_FROM_HMODULE, GetModuleHandleA("NTDLL.DLL"), ecode, 0, tmpBuffer, sizeof(tmpBuffer), 0);
+	FormatMessageA(FORMAT_MESSAGE_IGNORE_INSERTS | FORMAT_MESSAGE_FROM_HMODULE, GetModuleHandleA("NTDLL.DLL"), ecode, 0, tempBuffer, sizeof(tempBuffer), 0);
 
-	return std::string(tmpBuffer);
+	return tempBuffer;
 }
 /*
 #define MAX_NAME_LEN 1024
@@ -479,18 +479,18 @@ bool WriteLog(const std::string& filename, PEXCEPTION_POINTERS eps)
 {
 	CreateCrashLog(filename);
 
-	tmpBuffer[0] = 0;
+	tempBuffer[0] = 0;
 	DWORD code = eps->ExceptionRecord->ExceptionCode;
 	PVOID addr = eps->ExceptionRecord->ExceptionAddress;
 	MEMORY_BASIC_INFORMATION mbi;
 	if (VirtualQuery(addr, &mbi, sizeof(mbi)))
 	{
-		if (!GetModuleFileNameA((HMODULE)mbi.AllocationBase, tmpBuffer, MAX_PATH))
+		if (!GetModuleFileNameA((HMODULE)mbi.AllocationBase, tempBuffer, MAX_PATH))
 		{
-			tmpBuffer[0] = 0;
+			tempBuffer[0] = 0;
 		}
 	}
-	AppendCrashLog("ModuleFileName: %s \r\n\r\n", tmpBuffer);
+	AppendCrashLog("ModuleFileName: %s \r\n\r\n", tempBuffer);
 
 	AppendCrashLog("CurrentThreadId: %d\r\n\r\n", GetCurrentThreadId());
 

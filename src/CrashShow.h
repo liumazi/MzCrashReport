@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <string>
 #include <windows.h>
 
 void DoCrashShow(PEXCEPTION_POINTERS eps);
