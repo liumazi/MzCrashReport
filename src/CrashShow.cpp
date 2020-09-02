@@ -12,10 +12,12 @@
 #include "CrashUtils.h"
 #include "CrashLog.h"
 
-static HANDLE hCurrentProcess = 0;
-static CHAR tempBuffer[1024] = {};
+#define MAX_SYM_NAME_LEN 1024
 
-bool WriteDmp(const std::string& filename, PEXCEPTION_POINTERS eps)
+static HANDLE hCurrentProcess = 0;
+static CHAR tempBuffer[sizeof(SYMBOL_INFO) + MAX_SYM_NAME_LEN] = {};
+
+bool WriteCrashDmp(const std::string& filename, PEXCEPTION_POINTERS eps)
 {
 	HANDLE hFile = ::CreateFileA(
 		filename.c_str(),
@@ -88,39 +90,6 @@ std::string ExceptionCodeToString(DWORD ecode)
 	return tempBuffer;
 }
 /*
-#define MAX_NAME_LEN 1024
-BYTE symbolBuffer[sizeof(SYMBOL_INFO) + MAX_NAME_LEN] = {};
-
-std::string DumpSymbolName(DWORD dwLevel, const STACKFRAME& sf)
-{
-	DWORD dwAddress = sf.AddrPC.Offset;
-
-	PSYMBOL_INFO pSymbol = (PSYMBOL_INFO)symbolBuffer;
-	pSymbol->SizeOfStruct = sizeof(SYMBOL_INFO);
-	pSymbol->MaxNameLen = MAX_NAME_LEN;
-	DWORD64 symDisplacement = 0;
-	if (!::SymFromAddr(hCurrentProcess, dwAddress, &symDisplacement, pSymbol))
-	{
-		// LOG_LAST_ERROR();
-		sprintf_s(FmtBuffer, "%08X, SymFromAddr Failed \r\n", dwAddress);
-		return FmtBuffer;
-	}
-
-	IMAGEHLP_LINE line = { sizeof(IMAGEHLP_LINE) };
-	DWORD dwLineDisplacement = 0;
-	if (!::SymGetLineFromAddr(CurrentProcess, dwAddress, &dwLineDisplacement, &line))
-	{
-		// it is normal that we don't have source info for some symbols,
-		// notably all the ones from the system DLLs...
-		// sprintf_s(FmtBuffer, "SymGetLineFromAddr fail 0x%08x\r\n", dwAddress);
-		// return "b";
-		sprintf_s(FmtBuffer, "%08I64X, %s()\r\n", pSymbol->Address, pSymbol->Name);
-		return FmtBuffer;
-	}
-
-	sprintf_s(FmtBuffer, "%08I64X, %s(), line %u in\r\n %s\r\n", pSymbol->Address, pSymbol->Name, line.LineNumber, line.FileName);
-	return FmtBuffer;
-}
 
 BasicType GetBasicType(DWORD typeIndex, DWORD64 modBase)
 {
@@ -409,55 +378,81 @@ std::string DumpSymbolParam(STACKFRAME& sf)
 	}
 
 	return uc.ret;
+}*/
+
+void RetrieveSymbolName(const STACKFRAME& sf)
+{
+	DWORD dwAddress = sf.AddrPC.Offset;
+
+	PSYMBOL_INFO pSymbol = (PSYMBOL_INFO)tempBuffer;
+	pSymbol->SizeOfStruct = sizeof(SYMBOL_INFO);
+	pSymbol->MaxNameLen = MAX_SYM_NAME_LEN;
+
+	DWORD64 symDisplacement = 0;
+	if (!::SymFromAddr(hCurrentProcess, dwAddress, &symDisplacement, pSymbol))
+	{
+		// LOG_LAST_ERROR();
+		AppendCrashLog("%08X, SymFromAddr Failed \r\n", dwAddress);
+		return;
+	}
+
+	IMAGEHLP_LINE line = { sizeof(IMAGEHLP_LINE) };
+	DWORD dwLineDisplacement = 0;
+	if (!::SymGetLineFromAddr(hCurrentProcess, dwAddress, &dwLineDisplacement, &line))
+	{
+		// it is normal that we don't have source info for some symbols,
+		// notably all the ones from the system DLLs...
+		AppendCrashLog("%08I64X, %s()\r\n", pSymbol->Address, pSymbol->Name);
+		return;
+	}
+
+	AppendCrashLog("%08I64X, %s(), line %u in\r\n  %s\r\n", pSymbol->Address, pSymbol->Name, line.LineNumber, line.FileName);
 }
 
-std::string WalkCallStack(CONTEXT ctx, size_t skip, size_t depth = 20)
+void WalkCrashCallStack(CONTEXT ct, size_t skip = 0, size_t depth = 20)
 {
-	DWORD dwMachineType;
-
 	// initialize the initial frame: currently we can do it for x86 only
 	STACKFRAME sf = {};
 #if defined(_M_AMD64)
-	sf.AddrPC.Offset = ctx.Rip;
+	sf.AddrPC.Offset = ct.Rip;
 	sf.AddrPC.Mode = AddrModeFlat;
-	sf.AddrStack.Offset = ctx.Rsp;
+	sf.AddrStack.Offset = ct.Rsp;
 	sf.AddrStack.Mode = AddrModeFlat;
-	sf.AddrFrame.Offset = ctx.Rbp;
+	sf.AddrFrame.Offset = ct.Rbp;
 	sf.AddrFrame.Mode = AddrModeFlat;
-	dwMachineType = IMAGE_FILE_MACHINE_AMD64;
+	DWORD mt = IMAGE_FILE_MACHINE_AMD64;
 #elif defined(_M_IX86)
-	sf.AddrPC.Offset = ctx.Eip;
+	sf.AddrPC.Offset = ct.Eip;
 	sf.AddrPC.Mode = AddrModeFlat;
-	sf.AddrStack.Offset = ctx.Esp;
+	sf.AddrStack.Offset = ct.Esp;
 	sf.AddrStack.Mode = AddrModeFlat;
-	sf.AddrFrame.Offset = ctx.Ebp;
+	sf.AddrFrame.Offset = ct.Ebp;
 	sf.AddrFrame.Mode = AddrModeFlat;
-	dwMachineType = IMAGE_FILE_MACHINE_I386;
+	DWORD mt = IMAGE_FILE_MACHINE_I386;
 #else
 #error "Need to initialize STACKFRAME on non x86"
 #endif // _M_IX86
 
 	std::string ret;
 
-	HANDLE CurrentThread = GetCurrentThread();
 	// iterate over all stack frames
 	for (size_t nLevel = 0; nLevel < depth; nLevel++)
 	{
 		if (!::StackWalk(
-			dwMachineType,
-			CurrentProcess,
-			CurrentThread,
+			mt,
+			hCurrentProcess,
+			::GetCurrentThread(),
 			&sf,
-			&ctx,
-			nullptr,   // read memory function (default)
+			&ct,     // 注意: ct可能被修改 
+			nullptr, // read memory function (default)
 			::SymFunctionTableAccess,
 			::SymGetModuleBase,
-			nullptr))  // address translator for 16 bit
+			nullptr))// address translator for 16 bit
 		{
 			break;
 		}
 
-		//Invalid frame
+		// Invalid frame
 		if (!sf.AddrFrame.Offset)
 		{
 			break;
@@ -466,16 +461,14 @@ std::string WalkCallStack(CONTEXT ctx, size_t skip, size_t depth = 20)
 		// don't show this frame itself in the output
 		// if (nLevel >= skip)
 		{
-			ret.append(DumpSymbolName(nLevel - skip, sf));
-			ret.append(DumpSymbolParam(sf));
-			ret.append("\r\n");
+			RetrieveSymbolName(sf);
+			//ret.append(DumpSymbolParam(sf));
+			AppendCrashLog("\r\n");
 		}
 	}
+}
 
-	return ret;
-}*/
-
-bool WriteLog(const std::string& filename, PEXCEPTION_POINTERS eps)
+bool WriteCrashLog(const std::string& filename, PEXCEPTION_POINTERS eps)
 {
 	CreateCrashLog(filename);
 
@@ -492,7 +485,7 @@ bool WriteLog(const std::string& filename, PEXCEPTION_POINTERS eps)
 	}
 	AppendCrashLog("ModuleFileName: %s \r\n\r\n", tempBuffer);
 
-	AppendCrashLog("CurrentThreadId: %d\r\n\r\n", GetCurrentThreadId());
+	AppendCrashLog("CurrentThreadId: %d\r\n\r\n", ::GetCurrentThreadId());
 
 	AppendCrashLog("ExceptionAddress: 0x%08X\r\n", (DWORD)(addr));
 
@@ -512,18 +505,17 @@ bool WriteLog(const std::string& filename, PEXCEPTION_POINTERS eps)
 
 	AppendCrashLog("ExceptionCode: 0x%08X (%s)\r\n\r\n", code, ExceptionCodeToString(code).c_str());
 
-	/*
-	Rpt.append(("Call Stack:\r\n------------------------------------------------------\r\n"));
+	AppendCrashLog(("Call Stack:\r\n------------------------------------------------------\r\n"));
 
-	if (!::SymInitialize(CurrentProcess, nullptr, TRUE))
+	if (!::SymInitialize(hCurrentProcess, nullptr, TRUE))
 	{
-		Rpt.append("SymInitialize Error");
+		AppendCrashLog("SymInitialize failed");
 	}
 	else
 	{
-		Rpt.append(WalkCallStack(*eps->ContextRecord, 0));
+		WalkCrashCallStack(*eps->ContextRecord);
 	}
-	*/
+	
 	CloseCrashLog();
 
 	return true;
@@ -540,10 +532,10 @@ void DoCrashShow(PEXCEPTION_POINTERS eps)
 	std::string curFileName = GenDumpFileName();
 
 	std::string dmpFileName = curFileName + ".dmp";
-	WriteDmp(dmpFileName, eps);
+	WriteCrashDmp(dmpFileName, eps);
 
 	std::string logFileName = curFileName + ".log";
-	WriteLog(logFileName, eps);
+	WriteCrashLog(logFileName, eps);
 
 	MessageBoxA(GetActiveWindow(), "Click OK to open the crash log file.", CRASH_MSGBOX_CAPTION, 0);
 
