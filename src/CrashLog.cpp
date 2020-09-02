@@ -6,17 +6,17 @@
 
 #include "CrashLog.h"
 
-HANDLE hCrashLogFile = 0;
-char szCrashLogBuffer[CRASH_LOG_BUFFER_LEN] = {};
+HANDLE _hCrashLogFile = 0;
+char _szCrashLogBuffer[CRASH_LOG_BUFFER_LEN] = {};
 
 bool CreateCrashLog(const std::string& filename)
 {
-	if (hCrashLogFile)
+	if (_hCrashLogFile)
 	{
-		CloseHandle(hCrashLogFile);
+		CloseHandle(_hCrashLogFile);
 	}
 
-	hCrashLogFile = ::CreateFileA(
+	_hCrashLogFile = ::CreateFileA(
 		filename.c_str(),
 		GENERIC_WRITE,
 		0,
@@ -25,17 +25,17 @@ bool CreateCrashLog(const std::string& filename)
 		FILE_ATTRIBUTE_NORMAL,
 		NULL);
 
-	return hCrashLogFile != NULL;
+	return _hCrashLogFile != NULL;
 }
 
 bool CloseCrashLog()
 {
 	bool ret = false;
 
-	if (hCrashLogFile)
+	if (_hCrashLogFile)
 	{
-		ret = CloseHandle(hCrashLogFile) != FALSE;
-		hCrashLogFile = 0;
+		ret = CloseHandle(_hCrashLogFile) != FALSE;
+		_hCrashLogFile = 0;
 	}
 
 	return ret;

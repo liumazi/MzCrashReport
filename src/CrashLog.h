@@ -16,14 +16,14 @@ bool CreateCrashLog(const std::string& filename);
 template<typename ...T>
 bool AppendCrashLog(const char* format, T... args)
 {
-	extern char szCrashLogBuffer[CRASH_LOG_BUFFER_LEN];
-	extern HANDLE hCrashLogFile;
+	extern char _szCrashLogBuffer[CRASH_LOG_BUFFER_LEN];
+	extern HANDLE _hCrashLogFile;
 
-	int n = sprintf(szCrashLogBuffer, format, args...);
+	int n = sprintf(_szCrashLogBuffer, format, args...);
 	if (n > 0) // && n < FMT_BUFFER_LEN
 	{
 		DWORD writed = 0;
-		if (WriteFile(hCrashLogFile, szCrashLogBuffer, n, &writed, nullptr))
+		if (WriteFile(_hCrashLogFile, _szCrashLogBuffer, n, &writed, nullptr))
 		{
 			return DWORD(n) == writed;
 		}
