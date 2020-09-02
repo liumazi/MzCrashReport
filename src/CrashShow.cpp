@@ -1,9 +1,11 @@
-//
+ï»¿//
 // CrashShow.cpp
 //
 // Created by liuliu.mz on 20-08-28
 //
 
+#include <locale>
+#include <codecvt>
 #include <windows.h>
 #include <dbghelp.h>
 #pragma comment(lib, "dbghelp.lib")
@@ -15,8 +17,8 @@
 
 #define MAX_SYM_NAME_LEN 1024
 
-static HANDLE hCurrentProcess = 0;
-static CHAR tempBuffer[sizeof(SYMBOL_INFO) + MAX_SYM_NAME_LEN] = {};
+static HANDLE _hCurrentProcess = 0;
+static CHAR _tempBuffer[sizeof(SYMBOL_INFO) + MAX_SYM_NAME_LEN] = {};
 
 bool WriteCrashDmp(const std::string& filename, PEXCEPTION_POINTERS eps)
 {
@@ -38,7 +40,7 @@ bool WriteCrashDmp(const std::string& filename, PEXCEPTION_POINTERS eps)
 		dumpInfo.ClientPointers = FALSE;
 
 		bool ret = ::MiniDumpWriteDump(
-			hCurrentProcess,
+			_hCurrentProcess,
 			::GetCurrentProcessId(),
 			hFile,
 			MiniDumpNormal,
@@ -54,7 +56,7 @@ bool WriteCrashDmp(const std::string& filename, PEXCEPTION_POINTERS eps)
 	return false;
 }
 
-// Òì³£Âë×ª×Ö·û´®
+// å¼‚å¸¸ç è½¬å­—ç¬¦ä¸²
 std::string ExceptionCodeToString(DWORD ecode)
 {
 #define EXCEPTION(x) case EXCEPTION_##x: return (#x);
@@ -86,15 +88,15 @@ std::string ExceptionCodeToString(DWORD ecode)
 
 	// If not one of the "known" exceptions, try to get the string
 	// from NTDLL.DLL's message table.
-	FormatMessageA(FORMAT_MESSAGE_IGNORE_INSERTS | FORMAT_MESSAGE_FROM_HMODULE, GetModuleHandleA("NTDLL.DLL"), ecode, 0, tempBuffer, sizeof(tempBuffer), 0);
+	FormatMessageA(FORMAT_MESSAGE_IGNORE_INSERTS | FORMAT_MESSAGE_FROM_HMODULE, GetModuleHandleA("NTDLL.DLL"), ecode, 0, _tempBuffer, sizeof(_tempBuffer), 0);
 
-	return tempBuffer;
+	return _tempBuffer;
 }
-/*
+
 BasicType GetBasicType(DWORD typeIndex, DWORD64 modBase)
 {
 	BasicType basicType;
-	if (::SymGetTypeInfo(CurrentProcess, modBase, typeIndex,
+	if (::SymGetTypeInfo(_hCurrentProcess, modBase, typeIndex,
 		TI_GET_BASETYPE, &basicType))
 	{
 		return basicType;
@@ -103,9 +105,9 @@ BasicType GetBasicType(DWORD typeIndex, DWORD64 modBase)
 	// Get the real "TypeId" of the child.  We need this for the
 	// SymGetTypeInfo( TI_GET_TYPEID ) call below.
 	DWORD typeId;
-	if (::SymGetTypeInfo(CurrentProcess, modBase, typeIndex, TI_GET_TYPEID, &typeId))
+	if (::SymGetTypeInfo(_hCurrentProcess, modBase, typeIndex, TI_GET_TYPEID, &typeId))
 	{
-		if (::SymGetTypeInfo(CurrentProcess, modBase, typeId, TI_GET_BASETYPE,
+		if (::SymGetTypeInfo(_hCurrentProcess, modBase, typeId, TI_GET_BASETYPE,
 			&basicType))
 		{
 			return basicType;
@@ -157,18 +159,304 @@ char* FormatOutputValue(char* pszCurrBuffer, BasicType basicType, DWORD64 length
 	return pszCurrBuffer;
 }
 
+#define BASE_TYPE_NONE 0
+#define BASE_TYPE_VOID 1
+#define BASE_TYPE_BOOL 2
+#define BASE_TYPE_CHAR 3
+#define BASE_TYPE_UCHAR 4
+#define BASE_TYPE_WCHAR 5
+#define BASE_TYPE_SHORT 6
+#define BASE_TYPE_USHORT 7
+#define BASE_TYPE_INT 8
+#define BASE_TYPE_UINT 9
+#define BASE_TYPE_LONG 10
+#define BASE_TYPE_ULONG 11
+#define BASE_TYPE_LONGLONG 12
+#define BASE_TYPE_ULONGLONG 13
+#define BASE_TYPE_FLOAT 14
+#define BASE_TYPE_DOUBLE 15
+#define BASE_TYPE_END 16
+
+static std::string _baseTypeNames[BASE_TYPE_END] =
+{
+	"none type",
+	"void",
+	"bool",
+	"char",
+	"unsigned char",
+	"wchar",
+	"short",
+	"unsigned short",
+	"int",
+	"unsigned int",
+	"long",
+	"unsigned long",
+	"long long",
+	"unsigned long long",
+	"float",
+	"double"
+};
+
+int GetBaseType(ULONG64 modBase, ULONG typeID)
+{
+	DWORD baseType;
+	::SymGetTypeInfo(
+		_hCurrentProcess,
+		modBase,
+		typeID,
+		TI_GET_BASETYPE,
+		&baseType);
+
+	ULONG64 length;
+	::SymGetTypeInfo(
+		_hCurrentProcess,
+		modBase,
+		typeID,
+		TI_GET_LENGTH,
+		&length);
+
+	switch (baseType)
+	{
+	case btVoid:
+		return BASE_TYPE_VOID;
+
+	case btChar:
+		return BASE_TYPE_CHAR;
+
+	case btWChar:
+		return BASE_TYPE_WCHAR;
+
+	case btInt:
+		switch (length)
+		{
+		case 2:
+			return BASE_TYPE_SHORT;
+
+		case 4:
+			return BASE_TYPE_INT;
+
+		default:
+			return BASE_TYPE_LONGLONG;
+		}
+
+	case btUInt:
+		switch (length)
+		{
+		case 1:
+			return BASE_TYPE_UCHAR;
+
+		case 2:
+			return BASE_TYPE_USHORT;
+
+		case 4:
+			return BASE_TYPE_UINT;
+
+		default:
+			return BASE_TYPE_ULONGLONG;
+		}
+
+	case btFloat:
+		switch (length) 
+		{
+		case 4:
+			return BASE_TYPE_FLOAT;
+
+		default:
+			return BASE_TYPE_DOUBLE;
+		}
+
+	case btBool:
+		return BASE_TYPE_BOOL;
+
+	case btLong:
+		return BASE_TYPE_LONG;
+
+	case btULong:
+		return BASE_TYPE_ULONG;
+
+	default:
+		return BASE_TYPE_NONE;
+	}
+}
+
+std::string GetTypeName(ULONG64 modBase, ULONG typeID); // å‰ç½®å£°æ˜Ž
+
+std::string GetBaseTypeName(ULONG64 modBase, ULONG typeID)
+{
+	return _baseTypeNames[GetBaseType(modBase, typeID)];
+}
+
+std::string GetPointerTypeName(ULONG64 modBase, ULONG typeID)
+{
+	BOOL isReference;
+	::SymGetTypeInfo(
+		_hCurrentProcess,
+		modBase,
+		typeID,
+		TI_GET_IS_REFERENCE,
+		&isReference);
+
+	ULONG innerTypeID;
+	SymGetTypeInfo(
+		_hCurrentProcess,
+		modBase,
+		typeID,
+		TI_GET_TYPEID,
+		&innerTypeID);
+
+	return GetTypeName(modBase, innerTypeID) + (isReference == TRUE ? "&" : "*");
+}
+
+std::string GetArrayTypeName(ULONG64 modBase, ULONG typeID)
+{
+	ULONG innerTypeID;
+	SymGetTypeInfo(
+		_hCurrentProcess,
+		modBase,
+		typeID,
+		TI_GET_TYPEID,
+		&innerTypeID);
+
+	DWORD elemCount;
+	SymGetTypeInfo(
+		_hCurrentProcess,
+		modBase,
+		typeID,
+		TI_GET_COUNT,
+		&elemCount);
+
+	return GetTypeName(modBase, innerTypeID) + "[" + std::to_string(elemCount) + "]";
+}
+
+std::string GetFunctionTypeName(ULONG64 modBase, ULONG typeID)
+{
+	std::string ret;
+
+	DWORD paramCount;
+	SymGetTypeInfo(
+		_hCurrentProcess,
+		modBase,
+		typeID,
+		TI_GET_CHILDRENCOUNT,
+		&paramCount);
+
+	ULONG returnTypeID;
+	SymGetTypeInfo(
+		_hCurrentProcess,
+		modBase,
+		typeID,
+		TI_GET_TYPEID,
+		&returnTypeID);
+
+	ret += GetTypeName(modBase, returnTypeID);
+
+	BYTE* pBuffer = (BYTE*)malloc(sizeof(TI_FINDCHILDREN_PARAMS) + sizeof(ULONG) * paramCount);
+	TI_FINDCHILDREN_PARAMS* pFindParams = (TI_FINDCHILDREN_PARAMS*)pBuffer;
+	pFindParams->Count = paramCount;
+	pFindParams->Start = 0;
+
+	SymGetTypeInfo(
+		_hCurrentProcess,
+		modBase,
+		typeID,
+		TI_FINDCHILDREN,
+		pFindParams);
+
+	ret += "(";
+
+	for (DWORD i = 0; i < paramCount; i++)
+	{
+		DWORD paramTypeID;
+		SymGetTypeInfo(
+			_hCurrentProcess,
+			modBase,
+			pFindParams->ChildId[i],
+			TI_GET_TYPEID,
+			&paramTypeID);
+
+		if (i != 0) 
+		{
+			ret += ", ";
+		}
+
+		ret += GetTypeName(modBase, paramTypeID);
+	}
+
+	free(pBuffer);
+
+	ret += ")";
+
+	return ret;
+}
+
+std::string GetNameableTypeName(ULONG64 modBase, ULONG typeID)
+{
+	WCHAR* symName;
+
+	SymGetTypeInfo(
+		_hCurrentProcess,
+		modBase,
+		typeID,
+		TI_GET_SYMNAME,
+		&symName);
+
+	std::wstring ret = symName;
+
+	LocalFree(symName);
+
+	std::wstring_convert<std::codecvt_utf8<wchar_t>> cvter;
+	return cvter.to_bytes(ret);
+}
+
+std::string GetTypeName(ULONG64 modBase, ULONG typeID)
+{
+	DWORD symTag;
+	::SymGetTypeInfo(_hCurrentProcess, modBase, typeID, TI_GET_SYMTAG, &symTag);
+
+	switch (symTag)
+	{
+	case SymTagBaseType:
+		return GetBaseTypeName(modBase, typeID);
+
+	case SymTagPointerType:
+		return GetPointerTypeName(modBase, typeID);
+
+	case SymTagArrayType:
+		return GetArrayTypeName(modBase, typeID);
+
+	case SymTagUDT:
+		return GetNameableTypeName(modBase, typeID); // GetUDTTypeName
+
+	case SymTagEnum:
+		return GetNameableTypeName(modBase, typeID); // GetEnumTypeName
+
+	case SymTagFunctionType:
+		return GetFunctionTypeName(modBase, typeID);
+
+	default:
+		return "unkown_type";
+	}
+}
+
+
 #define MAX_TI_FINDCHILDREN_NUM 66
 
-// If it's a user defined type (UDT), recurse through its members until we're at fundamental types.
-// When he hit fundamental types, return false, so that FormatSymbolValue() will format them.
-bool DumpTypeIndex(DWORD64 modBase, DWORD dwTypeIndex, unsigned nestingLevel, DWORD_PTR offset, const char* Name)
+bool RetrieveFunVarSummary(const SYMBOL_INFO *pSymInfo, DWORD_PTR offset, int level)
 {
 	bool ret = false;
+
+	for (int i = 0; i < level; i++)
+	{
+		AppendCrashLog("\t");
+	}
+	AppendCrashLog("%s %s \n\r", GetTypeName(pSymInfo->ModBase, pSymInfo->TypeIndex).c_str(), pSymInfo->Name);
+
+	/*
 
 	// Get the name of the symbol.
 	// This will either be a Type name (if a UDT), or the structure member name.
 	WCHAR* pwszTypeName;
-	if (::SymGetTypeInfo(hCurrentProcess, modBase, dwTypeIndex, TI_GET_SYMNAME, &pwszTypeName))
+	if (::SymGetTypeInfo(_hCurrentProcess, modBase, dwTypeIndex, TI_GET_SYMNAME, &pwszTypeName))
 	{
 		AppendCrashLog(" %ls", pwszTypeName);
 		LocalFree(pwszTypeName);
@@ -176,7 +464,7 @@ bool DumpTypeIndex(DWORD64 modBase, DWORD dwTypeIndex, unsigned nestingLevel, DW
 
 	// Determine how many children this type has.
 	DWORD dwChildrenCount = 0;
-	::SymGetTypeInfo(hCurrentProcess, modBase, dwTypeIndex, TI_GET_CHILDRENCOUNT, &dwChildrenCount);
+	::SymGetTypeInfo(_hCurrentProcess, modBase, dwTypeIndex, TI_GET_CHILDRENCOUNT, &dwChildrenCount);
 
 	// If no children, we're done
 	if (!dwChildrenCount)
@@ -194,14 +482,14 @@ bool DumpTypeIndex(DWORD64 modBase, DWORD dwTypeIndex, unsigned nestingLevel, DW
 	// TI_FINDCHILDREN_PARAMS struct has.  Use derivation to accomplish this.
 	struct TI_FINDCHILDREN_PARAMS_EX : TI_FINDCHILDREN_PARAMS
 	{
-		ULONG MoreChildIds[MAX_TI_FINDCHILDREN_NUM]; // TODO: ¹Ì¶¨´óÐ¡Ì«ÀË·Ñ
+		ULONG MoreChildIds[MAX_TI_FINDCHILDREN_NUM]; // TODO: å›ºå®šå¤§å°å¤ªæµªè´¹
 	} children;
 
 	children.Count = dwChildrenCount;
 	children.Start = 0;
 
 	// Get the array of TypeIds, one for each child type
-	if (!::SymGetTypeInfo(hCurrentProcess, modBase, dwTypeIndex, TI_FINDCHILDREN, &children))
+	if (!::SymGetTypeInfo(_hCurrentProcess, modBase, dwTypeIndex, TI_FINDCHILDREN, &children))
 	{
 		return ret;
 	}
@@ -255,48 +543,52 @@ bool DumpTypeIndex(DWORD64 modBase, DWORD dwTypeIndex, unsigned nestingLevel, DW
 	}
 
 	bHandled = true;
-	return pszCurrBuffer;
+	return pszCurrBuffer;*/
+
+	return true;
 }
 
 // Given a SYMBOL_INFO representing a particular variable, displays its contents.
 // If it's a user defined type, display the members and their values.
-bool FormatSymbolValue(const SYMBOL_INFO *pSymInfo, const STACKFRAME *sf)
+bool RetrieveFunVar(const SYMBOL_INFO *pSymInfo, const STACKFRAME *sf)
 {
 	// Indicate if the variable is a local or parameter
-	if (pSymInfo->Flags & IMAGEHLP_SYMBOL_INFO_PARAMETER)
-		AppendCrashLog("Parameter ");
-	else if (pSymInfo->Flags & IMAGEHLP_SYMBOL_INFO_LOCAL)
-		AppendCrashLog("Local ");
+	if (pSymInfo->Flags & SYMF_PARAMETER)
+		AppendCrashLog("Parameter: ");
+	else if (pSymInfo->Flags & SYMF_LOCAL)
+		AppendCrashLog("Local var: ");
 	else
 		return false;
 
-	// If it's a function, don't do anything.
-	if (pSymInfo->Tag == 5)  // SymTagFunction from CVCONST.H from the DIA SDK
-		return false;
+	// If it's a function, don't do anything. TODO: ..
+	//if (pSymInfo->Tag == SymTagFunction)
+	//	return false;
 
 	DWORD_PTR pVariable = 0; // Will point to the variable's data in memory
 
-	if (pSymInfo->Flags & IMAGEHLP_SYMBOL_INFO_REGRELATIVE)
+	if (pSymInfo->Flags & IMAGEHLP_SYMBOL_INFO_REGRELATIVE) // SYMFLAG_REGREL
 	{
-		// if ( pSym->Register == 8 ) // EBP is the value 8 (in DBGHELP 5.1)
-		{                             // This may change !!! ??
-			pVariable = sf->AddrFrame.Offset;
+		//if ( pSymInfo->Register == 8 ) // EBP is the value 8 (in DBGHELP 5.1)
+		{                                // This may change !!! ??
+			pVariable = sf->AddrFrame.Offset; // TODO: EBP ??
 			pVariable += (DWORD_PTR)pSymInfo->Address;
 		}
-		// else
-		//   return false;
+		//else
+		//  return false;
 	}
-	else if (pSymInfo->Flags & IMAGEHLP_SYMBOL_INFO_REGISTER)
+	else if (pSymInfo->Flags & IMAGEHLP_SYMBOL_INFO_REGISTER) // SYMF_REGISTER
 	{
-		return false;                 // Don't try to report register variable
+		return false;                    // Don't try to report register variable, TODO: ..
 	}
 	else
 	{
 		pVariable = (DWORD_PTR)pSymInfo->Address; // It must be a global variable
 	}
 
+	return RetrieveFunVarSummary(pSymInfo, pVariable, 0);
+	/*
 	// Determine if the variable is a user defined type (UDT). IF so, will return true.
-	if (!DumpTypeIndex(pSymInfo->ModBase, pSymInfo->TypeIndex, 0, pVariable, pSymInfo->Name))
+	if (!)
 	{
 		// The symbol wasn't a UDT, so do basic, stupid formatting of the
 		// variable.  Based on the size, we're assuming it's a char, WORD, or
@@ -310,19 +602,18 @@ bool FormatSymbolValue(const SYMBOL_INFO *pSymInfo, const STACKFRAME *sf)
 		pszCurrBuffer = FormatOutputValue(pszCurrBuffer, basicType, pSym->Size,
 			(PVOID)pVariable);
 	}
-
-	return true;
+	*/
 }
 
-BOOL CALLBACK EnumSymbolsProcCallback(PSYMBOL_INFO pSymInfo, ULONG uSymSize, PVOID sf)
+BOOL CALLBACK EnumSymbolsCallback(PSYMBOL_INFO pSymInfo, ULONG uSymSize, PVOID sf)
 {
 	// we're only interested in parameters and local variables
-	if (pSymInfo->Flags & SYMF_PARAMETER || pSymInfo->Flags & SYMF_LOCAL)
+	if (pSymInfo->Flags & SYMF_PARAMETER || pSymInfo->Flags & SYMF_LOCAL) // if (pSymInfo->Tag == SymTagData) ??
 	{
 		__try
 		{
 			AppendCrashLog("\t");
-			FormatSymbolValue(pSymInfo, (LPSTACKFRAME)sf);
+			RetrieveFunVar(pSymInfo, (LPSTACKFRAME)sf);
 			AppendCrashLog("\r\n");
 		}
 		__except (EXCEPTION_EXECUTE_HANDLER)
@@ -342,7 +633,7 @@ void RetrieveFunVars(const STACKFRAME& sf)
 
 	IMAGEHLP_STACK_FRAME imagehlpStackFrame = {};
 	imagehlpStackFrame.InstructionOffset = dwAddress;
-	if (!::SymSetContext(hCurrentProcess, &imagehlpStackFrame, 0) && GetLastError() != ERROR_SUCCESS)
+	if (!::SymSetContext(_hCurrentProcess, &imagehlpStackFrame, 0) && GetLastError() != ERROR_SUCCESS)
 	{
 		// for symbols from kernel DLL we might not have access to their
 		// address, this is not a real error
@@ -351,27 +642,27 @@ void RetrieveFunVars(const STACKFRAME& sf)
 	}
 
 	if (!::SymEnumSymbols(
-		hCurrentProcess,
+		_hCurrentProcess,
 		NULL,           // DLL base: use current context
 		NULL,           // no mask, get all symbols
-		EnumSymbolsProcCallback,
+		EnumSymbolsCallback,
 		(PVOID)&sf))    // data parameter for this callback
 	{
 		AppendCrashLog("%08X, SymSetContext fail\r\n", dwAddress);
 		return;
 	}
 }
-*/
+
 void RetrieveFunName(const STACKFRAME& sf)
 {
 	DWORD dwAddress = sf.AddrPC.Offset;
 
-	PSYMBOL_INFO pSymbol = (PSYMBOL_INFO)tempBuffer;
+	PSYMBOL_INFO pSymbol = (PSYMBOL_INFO)_tempBuffer;
 	pSymbol->SizeOfStruct = sizeof(SYMBOL_INFO);
 	pSymbol->MaxNameLen = MAX_SYM_NAME_LEN;
 
 	DWORD64 symDisplacement = 0;
-	if (!::SymFromAddr(hCurrentProcess, dwAddress, &symDisplacement, pSymbol))
+	if (!::SymFromAddr(_hCurrentProcess, dwAddress, &symDisplacement, pSymbol))
 	{
 		// LOG_LAST_ERROR();
 		AppendCrashLog("%08X, SymFromAddr Failed \r\n", dwAddress);
@@ -380,7 +671,7 @@ void RetrieveFunName(const STACKFRAME& sf)
 
 	IMAGEHLP_LINE line = { sizeof(IMAGEHLP_LINE) };
 	DWORD dwLineDisplacement = 0;
-	if (!::SymGetLineFromAddr(hCurrentProcess, dwAddress, &dwLineDisplacement, &line))
+	if (!::SymGetLineFromAddr(_hCurrentProcess, dwAddress, &dwLineDisplacement, &line))
 	{
 		// it is normal that we don't have source info for some symbols,
 		// notably all the ones from the system DLLs...
@@ -388,7 +679,7 @@ void RetrieveFunName(const STACKFRAME& sf)
 		return;
 	}
 
-	AppendCrashLog("%08X, %s(), line %u in \r\n          %s\r\n", dwAddress/*pSymbol->Address*/, pSymbol->Name, line.LineNumber, line.FileName); // 08I64X
+	AppendCrashLog("%08X, %s(), line %u in %s\r\n", dwAddress/*pSymbol->Address*/, pSymbol->Name, line.LineNumber, line.FileName); // 08I64X
 }
 
 void WalkCrashCallStack(CONTEXT ct, size_t skip = 0, size_t depth = 20)
@@ -422,10 +713,10 @@ void WalkCrashCallStack(CONTEXT ct, size_t skip = 0, size_t depth = 20)
 	{
 		if (!::StackWalk(
 			mt,
-			hCurrentProcess,
+			_hCurrentProcess,
 			::GetCurrentThread(),
 			&sf,
-			&ct,     // ×¢Òâ: ct¿ÉÄÜ±»ÐÞ¸Ä 
+			&ct,     // æ³¨æ„: ctå¯èƒ½è¢«ä¿®æ”¹ 
 			nullptr, // read memory function (default)
 			::SymFunctionTableAccess,
 			::SymGetModuleBase,
@@ -444,7 +735,7 @@ void WalkCrashCallStack(CONTEXT ct, size_t skip = 0, size_t depth = 20)
 		// if (nLevel >= skip)
 		{
 			RetrieveFunName(sf);
-			//RetrieveFunVars(sf);
+			RetrieveFunVars(sf);
 			AppendCrashLog("\r\n");
 		}
 	}
@@ -454,18 +745,18 @@ bool WriteCrashLog(const std::string& filename, PEXCEPTION_POINTERS eps)
 {
 	CreateCrashLog(filename);
 
-	tempBuffer[0] = 0;
+	_tempBuffer[0] = 0;
 	DWORD code = eps->ExceptionRecord->ExceptionCode;
 	PVOID addr = eps->ExceptionRecord->ExceptionAddress;
 	MEMORY_BASIC_INFORMATION mbi;
 	if (VirtualQuery(addr, &mbi, sizeof(mbi)))
 	{
-		if (!GetModuleFileNameA((HMODULE)mbi.AllocationBase, tempBuffer, MAX_PATH))
+		if (!GetModuleFileNameA((HMODULE)mbi.AllocationBase, _tempBuffer, MAX_PATH))
 		{
-			tempBuffer[0] = 0;
+			_tempBuffer[0] = 0;
 		}
 	}
-	AppendCrashLog("ModuleFileName: %s \r\n\r\n", tempBuffer);
+	AppendCrashLog("ModuleFileName: %s \r\n\r\n", _tempBuffer);
 
 	AppendCrashLog("CurrentThreadId: %d\r\n\r\n", ::GetCurrentThreadId());
 
@@ -489,7 +780,7 @@ bool WriteCrashLog(const std::string& filename, PEXCEPTION_POINTERS eps)
 
 	AppendCrashLog(("Call Stack:\r\n------------------------------------------------------\r\n"));
 
-	if (!::SymInitialize(hCurrentProcess, nullptr, TRUE))
+	if (!::SymInitialize(_hCurrentProcess, nullptr, TRUE))
 	{
 		AppendCrashLog("SymInitialize failed");
 	}
@@ -510,7 +801,7 @@ void DoCrashShow(PEXCEPTION_POINTERS eps)
 		::MessageBoxA(GetActiveWindow(), "Invaild eps.", CRASH_MSGBOX_CAPTION, 0);
 	}
 
-	hCurrentProcess = ::GetCurrentProcess();
+	_hCurrentProcess = ::GetCurrentProcess();
 	std::string curFileName = GenDumpFileName();
 
 	std::string dmpFileName = curFileName + ".dmp";
