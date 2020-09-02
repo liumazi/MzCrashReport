@@ -11,6 +11,7 @@
 #include "CrashShow.h"
 #include "CrashUtils.h"
 #include "CrashLog.h"
+#include "CrashConst.h"
 
 #define MAX_SYM_NAME_LEN 1024
 
@@ -90,7 +91,6 @@ std::string ExceptionCodeToString(DWORD ecode)
 	return tempBuffer;
 }
 /*
-
 BasicType GetBasicType(DWORD typeIndex, DWORD64 modBase)
 {
 	BasicType basicType;
@@ -157,60 +157,66 @@ char* FormatOutputValue(char* pszCurrBuffer, BasicType basicType, DWORD64 length
 	return pszCurrBuffer;
 }
 
-// If it's a user defined type (UDT), recurse through its members until we're
-// at fundamental types.  When he hit fundamental types, return
-// bHandled = false, so that FormatSymbolValue() will format them.
-char* DumpTypeIndex(char* pszCurrBuffer, DWORD64 modBase, DWORD dwTypeIndex,
-	unsigned nestingLevel, DWORD_PTR offset, bool & bHandled, char* Name)
-{
-	bHandled = false;
+#define MAX_TI_FINDCHILDREN_NUM 66
 
-	// Get the name of the symbol.  This will either be a Type name (if a UDT),
-	// or the structure member name.
-	WCHAR * pwszTypeName;
-	if (::SymGetTypeInfo(CurrentProcess, modBase, dwTypeIndex, TI_GET_SYMNAME,
-		&pwszTypeName))
+// If it's a user defined type (UDT), recurse through its members until we're at fundamental types.
+// When he hit fundamental types, return false, so that FormatSymbolValue() will format them.
+bool DumpTypeIndex(DWORD64 modBase, DWORD dwTypeIndex, unsigned nestingLevel, DWORD_PTR offset, const char* Name)
+{
+	bool ret = false;
+
+	// Get the name of the symbol.
+	// This will either be a Type name (if a UDT), or the structure member name.
+	WCHAR* pwszTypeName;
+	if (::SymGetTypeInfo(hCurrentProcess, modBase, dwTypeIndex, TI_GET_SYMNAME, &pwszTypeName))
 	{
-		pszCurrBuffer += sprintf(pszCurrBuffer, " %ls", pwszTypeName);
+		AppendCrashLog(" %ls", pwszTypeName);
 		LocalFree(pwszTypeName);
 	}
 
 	// Determine how many children this type has.
 	DWORD dwChildrenCount = 0;
-	::SymGetTypeInfo(CurrentProcess, modBase, dwTypeIndex, TI_GET_CHILDRENCOUNT,
-		&dwChildrenCount);
+	::SymGetTypeInfo(hCurrentProcess, modBase, dwTypeIndex, TI_GET_CHILDRENCOUNT, &dwChildrenCount);
 
-	if (!dwChildrenCount)                                 // If no children, we're done
-		return pszCurrBuffer;
+	// If no children, we're done
+	if (!dwChildrenCount)
+	{
+		return ret;
+	}
+
+	if (dwChildrenCount > MAX_TI_FINDCHILDREN_NUM)
+	{
+		dwChildrenCount = MAX_TI_FINDCHILDREN_NUM;
+	}
 
 	// Prepare to get an array of "TypeIds", representing each of the children.
 	// SymGetTypeInfo(TI_FINDCHILDREN) expects more memory than just a
 	// TI_FINDCHILDREN_PARAMS struct has.  Use derivation to accomplish this.
-	struct FINDCHILDREN : TI_FINDCHILDREN_PARAMS
+	struct TI_FINDCHILDREN_PARAMS_EX : TI_FINDCHILDREN_PARAMS
 	{
-		ULONG   MoreChildIds[1024];
-		FINDCHILDREN(){ Count = sizeof(MoreChildIds) / sizeof(MoreChildIds[0]); }
+		ULONG MoreChildIds[MAX_TI_FINDCHILDREN_NUM]; // TODO: 固定大小太浪费
 	} children;
 
 	children.Count = dwChildrenCount;
 	children.Start = 0;
 
 	// Get the array of TypeIds, one for each child type
-	if (!::SymGetTypeInfo(CurrentProcess, modBase, dwTypeIndex, TI_FINDCHILDREN,
-		&children))
+	if (!::SymGetTypeInfo(hCurrentProcess, modBase, dwTypeIndex, TI_FINDCHILDREN, &children))
 	{
-		return pszCurrBuffer;
+		return ret;
 	}
 
 	// Append a line feed
-	pszCurrBuffer += sprintf(pszCurrBuffer, "\r\n");
+	AppendCrashLog("\r\n");
 
 	// Iterate through each of the children
 	for (unsigned i = 0; i < dwChildrenCount; i++)
 	{
 		// Add appropriate indentation level (since this routine is recursive)
 		for (unsigned j = 0; j <= nestingLevel + 1; j++)
-			pszCurrBuffer += sprintf(pszCurrBuffer, "\t");
+		{
+			AppendCrashLog("\t");
+		}
 
 		// Recurse for each of the child types
 		bool bHandled2;
@@ -252,51 +258,45 @@ char* DumpTypeIndex(char* pszCurrBuffer, DWORD64 modBase, DWORD dwTypeIndex,
 	return pszCurrBuffer;
 }
 
-// Given a SYMBOL_INFO representing a particular variable, displays its
-// contents.  If it's a user defined type, display the members and their
-// values.
-bool FormatSymbolValue(PSYMBOL_INFO pSym, STACKFRAME* sf, char* pszBuffer, unsigned cbBuffer)
+// Given a SYMBOL_INFO representing a particular variable, displays its contents.
+// If it's a user defined type, display the members and their values.
+bool FormatSymbolValue(const SYMBOL_INFO *pSymInfo, const STACKFRAME *sf)
 {
-	char* pszCurrBuffer = pszBuffer;
-
 	// Indicate if the variable is a local or parameter
-	if (pSym->Flags & IMAGEHLP_SYMBOL_INFO_PARAMETER)
-		pszCurrBuffer += sprintf(pszCurrBuffer, "Parameter ");
-	else if (pSym->Flags & IMAGEHLP_SYMBOL_INFO_LOCAL)
-		pszCurrBuffer += sprintf(pszCurrBuffer, "Local ");
-
-	// If it's a function, don't do anything.
-	if (pSym->Tag == 5)                                   // SymTagFunction from CVCONST.H from the DIA SDK
+	if (pSymInfo->Flags & IMAGEHLP_SYMBOL_INFO_PARAMETER)
+		AppendCrashLog("Parameter ");
+	else if (pSymInfo->Flags & IMAGEHLP_SYMBOL_INFO_LOCAL)
+		AppendCrashLog("Local ");
+	else
 		return false;
 
-	DWORD_PTR pVariable = 0;                                // Will point to the variable's data in memory
+	// If it's a function, don't do anything.
+	if (pSymInfo->Tag == 5)  // SymTagFunction from CVCONST.H from the DIA SDK
+		return false;
 
-	if (pSym->Flags & IMAGEHLP_SYMBOL_INFO_REGRELATIVE)
+	DWORD_PTR pVariable = 0; // Will point to the variable's data in memory
+
+	if (pSymInfo->Flags & IMAGEHLP_SYMBOL_INFO_REGRELATIVE)
 	{
-		// if ( pSym->Register == 8 )   // EBP is the value 8 (in DBGHELP 5.1)
-		{                                                   //  This may change!!!
+		// if ( pSym->Register == 8 ) // EBP is the value 8 (in DBGHELP 5.1)
+		{                             // This may change !!! ??
 			pVariable = sf->AddrFrame.Offset;
-			pVariable += (DWORD_PTR)pSym->Address;
+			pVariable += (DWORD_PTR)pSymInfo->Address;
 		}
 		// else
-		//  return false;
+		//   return false;
 	}
-	else if (pSym->Flags & IMAGEHLP_SYMBOL_INFO_REGISTER)
+	else if (pSymInfo->Flags & IMAGEHLP_SYMBOL_INFO_REGISTER)
 	{
-		return false;                                       // Don't try to report register variable
+		return false;                 // Don't try to report register variable
 	}
 	else
 	{
-		pVariable = (DWORD_PTR)pSym->Address;               // It must be a global variable
+		pVariable = (DWORD_PTR)pSymInfo->Address; // It must be a global variable
 	}
 
-	// Determine if the variable is a user defined type (UDT).  IF so, bHandled
-	// will return true.
-	bool bHandled;
-	pszCurrBuffer = DumpTypeIndex(pszCurrBuffer, pSym->ModBase, pSym->TypeIndex,
-		0, pVariable, bHandled, pSym->Name);
-
-	if (!bHandled)
+	// Determine if the variable is a user defined type (UDT). IF so, will return true.
+	if (!DumpTypeIndex(pSymInfo->ModBase, pSymInfo->TypeIndex, 0, pVariable, pSymInfo->Name))
 	{
 		// The symbol wasn't a UDT, so do basic, stupid formatting of the
 		// variable.  Based on the size, we're assuming it's a char, WORD, or
@@ -312,46 +312,41 @@ bool FormatSymbolValue(PSYMBOL_INFO pSym, STACKFRAME* sf, char* pszBuffer, unsig
 	}
 
 	return true;
-}*/
+}
 
-char szBuffer[2048];
-
-BOOL CALLBACK EnumSymbolsProcCallback(PSYMBOL_INFO pSymInfo, ULONG SymSize, PVOID sf)
+BOOL CALLBACK EnumSymbolsProcCallback(PSYMBOL_INFO pSymInfo, ULONG uSymSize, PVOID sf)
 {
-	/*
 	// we're only interested in parameters and local variables
 	if (pSymInfo->Flags & SYMF_PARAMETER || pSymInfo->Flags & SYMF_LOCAL)
 	{
 		__try
 		{
-			if (FormatSymbolValue(pSymInfo, uc->sf, szBuffer, _countof(szBuffer)))
-			{
-				sprintf(FmtBuffer, "\t%s\n", szBuffer);
-				uc->ret.append(FmtBuffer);
-			}
+			AppendCrashLog("\t");
+			FormatSymbolValue(pSymInfo, (LPSTACKFRAME)sf);
+			AppendCrashLog("\r\n");
 		}
 		__except (EXCEPTION_EXECUTE_HANDLER)
 		{
 		}
 	}
-	*/
+
 	// return true to continue enumeration, false would have stopped it
 	return TRUE;
 }
 
-void RetrieveSymbolParam(const STACKFRAME& sf)
+void RetrieveFunVars(const STACKFRAME& sf)
 {
-	DWORD dwAddrPC = sf.AddrPC.Offset;
+	DWORD dwAddress = sf.AddrPC.Offset;
 
 	// use SymSetContext to get just the locals/params for this frame
 
 	IMAGEHLP_STACK_FRAME imagehlpStackFrame = {};
-	imagehlpStackFrame.InstructionOffset = dwAddrPC;
-	if (!::SymSetContext(hCurrentProcess, &imagehlpStackFrame, 0))
+	imagehlpStackFrame.InstructionOffset = dwAddress;
+	if (!::SymSetContext(hCurrentProcess, &imagehlpStackFrame, 0) && GetLastError() != ERROR_SUCCESS)
 	{
 		// for symbols from kernel DLL we might not have access to their
 		// address, this is not a real error
-		AppendCrashLog("%08X, SymSetContext fail\r\n", dwAddrPC);
+		AppendCrashLog("%08X, SymSetContext fail\r\n", dwAddress);
 		return;
 	}
 
@@ -362,12 +357,12 @@ void RetrieveSymbolParam(const STACKFRAME& sf)
 		EnumSymbolsProcCallback,
 		(PVOID)&sf))    // data parameter for this callback
 	{
-		AppendCrashLog("%08X, SymSetContext fail\r\n", dwAddrPC);
+		AppendCrashLog("%08X, SymSetContext fail\r\n", dwAddress);
 		return;
 	}
 }
-
-void RetrieveSymbolName(const STACKFRAME& sf)
+*/
+void RetrieveFunName(const STACKFRAME& sf)
 {
 	DWORD dwAddress = sf.AddrPC.Offset;
 
@@ -393,7 +388,7 @@ void RetrieveSymbolName(const STACKFRAME& sf)
 		return;
 	}
 
-	AppendCrashLog("%08X, %s(), line %u in\r\n  %s\r\n", dwAddress/*pSymbol->Address*/, pSymbol->Name, line.LineNumber, line.FileName); // 08I64X
+	AppendCrashLog("%08X, %s(), line %u in \r\n          %s\r\n", dwAddress/*pSymbol->Address*/, pSymbol->Name, line.LineNumber, line.FileName); // 08I64X
 }
 
 void WalkCrashCallStack(CONTEXT ct, size_t skip = 0, size_t depth = 20)
@@ -448,8 +443,8 @@ void WalkCrashCallStack(CONTEXT ct, size_t skip = 0, size_t depth = 20)
 		// don't show this frame itself in the output
 		// if (nLevel >= skip)
 		{
-			RetrieveSymbolName(sf);
-			//RetrieveSymbolParam(sf);
+			RetrieveFunName(sf);
+			//RetrieveFunVars(sf);
 			AppendCrashLog("\r\n");
 		}
 	}
