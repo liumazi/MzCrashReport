@@ -45,7 +45,7 @@ void fun1()
 
 void fun2()
 {
-	assert(false);
+	assert(false); // Debug下 点中止 无法抓到
 }
 
 class test3base
@@ -69,6 +69,29 @@ void fun3()
 void fun4()
 {
 	new int[0x1fffffff];
+}
+
+void fun5()
+{
+	printf(nullptr);
+}
+
+void fun6()
+{
+	abort();
+}
+
+int fun7()
+{
+	int a = 1;
+	int b = 0;
+	return a / b;
+}
+
+int fun8()
+{
+	//terminate(); // Debug下 点中止 无法抓到
+	throw("a");
 }
 
 int _tmain(int argc, _TCHAR* argv[])
@@ -101,6 +124,18 @@ int _tmain(int argc, _TCHAR* argv[])
 
 		case 4:
 			fun4();
+
+		case 5:
+			fun5();
+
+		case 6:
+			fun6();
+
+		case 7:
+			fun7();
+
+		case 8:
+			fun8();
 
 		default:
 			break;
