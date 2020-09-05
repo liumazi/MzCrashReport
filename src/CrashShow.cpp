@@ -436,20 +436,6 @@ std::string GetTypeName(ULONG64 modBase, ULONG typeID)
 		return "unkown_type_?";
 	}
 }
-/*
-void ShowVariableValue(const VARIABLE_INFO* pVarInfo)
-{
-	BYTE* pData = (BYTE*)malloc(sizeof(BYTE) * pVarInfo->size);
-	ReadDebuggeeMemory(pVarInfo->address, pVarInfo->size, pData);
-
-	std::wcout << GetTypeValue(
-		pVarInfo->typeID,
-		pVarInfo->modBase,
-		pVarInfo->address,
-		pData);
-
-	free(pData);
-}*/
 
 std::string GetBaseTypeValue(ULONG64 modBase, ULONG typeID, const BYTE* pData)
 {
@@ -744,8 +730,6 @@ std::string GetDataMemberInfo(ULONG64 modBase, ULONG memberID, const BYTE* pData
 
 	const BYTE* childAddress = pData + offset;
 
-	// valueBuilder << TEXT("  ") << std::hex << std::uppercase << std::setfill(TEXT('0')) << std::setw(8) << childAddress << std::dec;
-
 	ret += GetTypeValue(modBase, memberTypeID, childAddress);
 
 	return ret;
@@ -838,100 +822,6 @@ bool RetrieveFunVarDetail(const SYMBOL_INFO *pSymInfo, const BYTE* pVariable)
 
 	AppendCrashLog("%s %s %s \n\r", GetTypeName(pSymInfo->ModBase, pSymInfo->TypeIndex).c_str(), pSymInfo->Name, GetTypeValue(pSymInfo->ModBase, pSymInfo->TypeIndex, pVariable).c_str());
 
-	/*
-
-	// Get the name of the symbol.
-	// This will either be a Type name (if a UDT), or the structure member name.
-	WCHAR* pwszTypeName;
-	if (::SymGetTypeInfo(_hCurrentProcess, modBase, dwTypeIndex, TI_GET_SYMNAME, &pwszTypeName))
-	{
-		AppendCrashLog(" %ls", pwszTypeName);
-		LocalFree(pwszTypeName);
-	}
-
-	// Determine how many children this type has.
-	DWORD dwChildrenCount = 0;
-	::SymGetTypeInfo(_hCurrentProcess, modBase, dwTypeIndex, TI_GET_CHILDRENCOUNT, &dwChildrenCount);
-
-	// If no children, we're done
-	if (!dwChildrenCount)
-	{
-		return ret;
-	}
-
-	if (dwChildrenCount > MAX_TI_FINDCHILDREN_NUM)
-	{
-		dwChildrenCount = MAX_TI_FINDCHILDREN_NUM;
-	}
-
-	// Prepare to get an array of "TypeIds", representing each of the children.
-	// SymGetTypeInfo(TI_FINDCHILDREN) expects more memory than just a
-	// TI_FINDCHILDREN_PARAMS struct has.  Use derivation to accomplish this.
-	struct TI_FINDCHILDREN_PARAMS_EX : TI_FINDCHILDREN_PARAMS
-	{
-		ULONG MoreChildIds[MAX_TI_FINDCHILDREN_NUM]; // TODO: 固定大小太浪费
-	} children;
-
-	children.Count = dwChildrenCount;
-	children.Start = 0;
-
-	// Get the array of TypeIds, one for each child type
-	if (!::SymGetTypeInfo(_hCurrentProcess, modBase, dwTypeIndex, TI_FINDCHILDREN, &children))
-	{
-		return ret;
-	}
-
-	// Append a line feed
-	AppendCrashLog("\r\n");
-
-	// Iterate through each of the children
-	for (unsigned i = 0; i < dwChildrenCount; i++)
-	{
-		// Add appropriate indentation level (since this routine is recursive)
-		for (unsigned j = 0; j <= nestingLevel + 1; j++)
-		{
-			AppendCrashLog("\t");
-		}
-
-		// Recurse for each of the child types
-		bool bHandled2;
-		BasicType basicType = GetBasicType(children.ChildId[i], modBase);
-		pszCurrBuffer += sprintf(pszCurrBuffer, rgBaseType[basicType]);
-
-		pszCurrBuffer = DumpTypeIndex(pszCurrBuffer, modBase,
-			children.ChildId[i], nestingLevel + 1,
-			offset, bHandled2, ""/*Name * /);
-
-		// If the child wasn't a UDT, format it appropriately
-		if (!bHandled2)
-		{
-			// Get the offset of the child member, relative to its parent
-			DWORD dwMemberOffset;
-			::SymGetTypeInfo(CurrentProcess, modBase, children.ChildId[i],
-				TI_GET_OFFSET, &dwMemberOffset);
-
-			// Get the real "TypeId" of the child.  We need this for the
-			// SymGetTypeInfo( TI_GET_TYPEID ) call below.
-			DWORD typeId;
-			::SymGetTypeInfo(CurrentProcess, modBase, children.ChildId[i],
-				TI_GET_TYPEID, &typeId);
-
-			// Get the size of the child member
-			ULONG64 length;
-			::SymGetTypeInfo(CurrentProcess, modBase, typeId, TI_GET_LENGTH, &length);
-
-			// Calculate the address of the member
-			DWORD_PTR dwFinalOffset = offset + dwMemberOffset;
-			pszCurrBuffer = FormatOutputValue(pszCurrBuffer, basicType,
-				length, (PVOID)dwFinalOffset);
-
-			pszCurrBuffer += sprintf(pszCurrBuffer, "\r\n");
-		}
-	}
-
-	bHandled = true;
-	return pszCurrBuffer;*/
-
 	return true;
 }
 
@@ -973,23 +863,6 @@ bool RetrieveFunVar(const SYMBOL_INFO *pSymInfo, const STACKFRAME *sf)
 	}
 
 	return RetrieveFunVarDetail(pSymInfo, pVariable);
-	/*
-	// Determine if the variable is a user defined type (UDT). IF so, will return true.
-	if (!)
-	{
-		// The symbol wasn't a UDT, so do basic, stupid formatting of the
-		// variable.  Based on the size, we're assuming it's a char, WORD, or
-		// DWORD.
-		BasicType basicType = GetBasicType(pSym->TypeIndex, pSym->ModBase);
-		pszCurrBuffer += sprintf(pszCurrBuffer, rgBaseType[basicType]);
-
-		// Emit the variable name
-		pszCurrBuffer += sprintf(pszCurrBuffer, "\'%s\'", pSym->Name);
-
-		pszCurrBuffer = FormatOutputValue(pszCurrBuffer, basicType, pSym->Size,
-			(PVOID)pVariable);
-	}
-	*/
 }
 
 BOOL CALLBACK EnumSymbolsCallback(PSYMBOL_INFO pSymInfo, ULONG uSymSize, PVOID sf)
@@ -1119,7 +992,7 @@ void WalkCrashCallStack(CONTEXT ct, size_t skip = 0, size_t depth = 20)
 		}
 
 		// don't show this frame itself in the output
-		// if (nLevel >= skip)
+		//if (nLevel >= skip)
 		{
 			RetrieveFunName(sf);
 			RetrieveFunVars(sf);
@@ -1197,7 +1070,7 @@ void DoCrashShow(PEXCEPTION_POINTERS eps)
 	std::string logFileName = curFileName + ".log";
 	WriteCrashLog(logFileName, eps);
 
-	MessageBoxA(GetActiveWindow(), "Click OK to open the crash log file.", CRASH_MSGBOX_CAPTION, 0);
+	::MessageBoxA(GetActiveWindow(), "Click OK to open the crash log file.", CRASH_MSGBOX_CAPTION, 0);
 
-	ShellExecuteA(0, "open", "explorer.exe", ("/select," + logFileName).c_str(), nullptr, SW_SHOWNORMAL);
+	::ShellExecuteA(0, "open", "explorer.exe", ("/select," + logFileName).c_str(), nullptr, SW_SHOWNORMAL);
 }
