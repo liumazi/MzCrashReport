@@ -840,7 +840,7 @@ bool RetrieveFunVarDetail(const SYMBOL_INFO *pSymInfo, const BYTE* pVariable, in
 	{
 		AppendCrashLog("\t");
 	}
-	AppendCrashLog("%s %s %s \n\r", GetTypeName(pSymInfo->ModBase, pSymInfo->TypeIndex).c_str(), pSymInfo->Name, GetTypeValue(pSymInfo->ModBase, pSymInfo->TypeIndex, pVariable));
+	AppendCrashLog("%s %s %s \n\r", GetTypeName(pSymInfo->ModBase, pSymInfo->TypeIndex).c_str(), pSymInfo->Name, GetTypeValue(pSymInfo->ModBase, pSymInfo->TypeIndex, pVariable).c_str());
 
 	/*
 
