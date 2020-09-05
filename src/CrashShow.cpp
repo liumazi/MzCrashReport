@@ -25,7 +25,7 @@ std::string GetTypeValue(ULONG64 modBase, ULONG typeID, const BYTE* address);
 
 bool WriteCrashDmp(const std::string& filename, PEXCEPTION_POINTERS eps)
 {
-	HANDLE hFile = ::CreateFileA(
+	HANDLE hFile = CreateFileA(
 		filename.c_str(),
 		GENERIC_WRITE,
 		0,
@@ -38,20 +38,20 @@ bool WriteCrashDmp(const std::string& filename, PEXCEPTION_POINTERS eps)
 	{
 		MINIDUMP_EXCEPTION_INFORMATION dumpInfo;
 
-		dumpInfo.ThreadId = ::GetCurrentThreadId();
+		dumpInfo.ThreadId = GetCurrentThreadId();
 		dumpInfo.ExceptionPointers = eps;
 		dumpInfo.ClientPointers = FALSE;
 
-		bool ret = ::MiniDumpWriteDump(
+		bool ret = MiniDumpWriteDump(
 			_hCurrentProcess,
-			::GetCurrentProcessId(),
+			GetCurrentProcessId(),
 			hFile,
 			MiniDumpNormal,
 			&dumpInfo,
 			nullptr,
 			nullptr) != FALSE;
 
-		::CloseHandle(hFile);
+		CloseHandle(hFile);
 
 		return ret;
 	}
@@ -99,8 +99,7 @@ std::string ExceptionCodeToString(DWORD ecode)
 BasicType GetBasicType(DWORD typeIndex, DWORD64 modBase)
 {
 	BasicType basicType;
-	if (::SymGetTypeInfo(_hCurrentProcess, modBase, typeIndex,
-		TI_GET_BASETYPE, &basicType))
+	if (SymGetTypeInfo(_hCurrentProcess, modBase, typeIndex, TI_GET_BASETYPE, &basicType))
 	{
 		return basicType;
 	}
@@ -108,9 +107,9 @@ BasicType GetBasicType(DWORD typeIndex, DWORD64 modBase)
 	// Get the real "TypeId" of the child.  We need this for the
 	// SymGetTypeInfo( TI_GET_TYPEID ) call below.
 	DWORD typeId;
-	if (::SymGetTypeInfo(_hCurrentProcess, modBase, typeIndex, TI_GET_TYPEID, &typeId))
+	if (SymGetTypeInfo(_hCurrentProcess, modBase, typeIndex, TI_GET_TYPEID, &typeId))
 	{
-		if (::SymGetTypeInfo(_hCurrentProcess, modBase, typeId, TI_GET_BASETYPE,
+		if (SymGetTypeInfo(_hCurrentProcess, modBase, typeId, TI_GET_BASETYPE,
 			&basicType))
 		{
 			return basicType;
@@ -203,7 +202,7 @@ static std::string _baseTypeNames[BASE_TYPE_END] =
 int GetBaseType(ULONG64 modBase, ULONG typeID)
 {
 	DWORD baseType;
-	::SymGetTypeInfo(
+	SymGetTypeInfo(
 		_hCurrentProcess,
 		modBase,
 		typeID,
@@ -211,7 +210,7 @@ int GetBaseType(ULONG64 modBase, ULONG typeID)
 		&baseType);
 
 	ULONG64 length;
-	::SymGetTypeInfo(
+	SymGetTypeInfo(
 		_hCurrentProcess,
 		modBase,
 		typeID,
@@ -290,7 +289,7 @@ std::string GetBaseTypeName(ULONG64 modBase, ULONG typeID)
 std::string GetPointerTypeName(ULONG64 modBase, ULONG typeID)
 {
 	BOOL isReference;
-	::SymGetTypeInfo(
+	SymGetTypeInfo(
 		_hCurrentProcess,
 		modBase,
 		typeID,
@@ -298,7 +297,7 @@ std::string GetPointerTypeName(ULONG64 modBase, ULONG typeID)
 		&isReference);
 
 	ULONG innerTypeID;
-	::SymGetTypeInfo(
+	SymGetTypeInfo(
 		_hCurrentProcess,
 		modBase,
 		typeID,
@@ -311,7 +310,7 @@ std::string GetPointerTypeName(ULONG64 modBase, ULONG typeID)
 std::string GetArrayTypeName(ULONG64 modBase, ULONG typeID)
 {
 	ULONG innerTypeID;
-	::SymGetTypeInfo(
+	SymGetTypeInfo(
 		_hCurrentProcess,
 		modBase,
 		typeID,
@@ -319,7 +318,7 @@ std::string GetArrayTypeName(ULONG64 modBase, ULONG typeID)
 		&innerTypeID);
 
 	DWORD elemCount;
-	::SymGetTypeInfo(
+	SymGetTypeInfo(
 		_hCurrentProcess,
 		modBase,
 		typeID,
@@ -334,7 +333,7 @@ std::string GetFunctionTypeName(ULONG64 modBase, ULONG typeID)
 	std::string ret = "";
 
 	DWORD paramCount;
-	::SymGetTypeInfo(
+	SymGetTypeInfo(
 		_hCurrentProcess,
 		modBase,
 		typeID,
@@ -342,7 +341,7 @@ std::string GetFunctionTypeName(ULONG64 modBase, ULONG typeID)
 		&paramCount);
 
 	ULONG returnTypeID;
-	::SymGetTypeInfo(
+	SymGetTypeInfo(
 		_hCurrentProcess,
 		modBase,
 		typeID,
@@ -356,7 +355,7 @@ std::string GetFunctionTypeName(ULONG64 modBase, ULONG typeID)
 	pFindParams->Count = paramCount;
 	pFindParams->Start = 0;
 
-	::SymGetTypeInfo(
+	SymGetTypeInfo(
 		_hCurrentProcess,
 		modBase,
 		typeID,
@@ -368,7 +367,7 @@ std::string GetFunctionTypeName(ULONG64 modBase, ULONG typeID)
 	for (DWORD i = 0; i < paramCount; i++)
 	{
 		DWORD paramTypeID;
-		::SymGetTypeInfo(
+		SymGetTypeInfo(
 			_hCurrentProcess,
 			modBase,
 			pFindParams->ChildId[i],
@@ -394,7 +393,7 @@ std::string GetNameableTypeName(ULONG64 modBase, ULONG typeID)
 {
 	WCHAR* symName;
 
-	::SymGetTypeInfo(
+	SymGetTypeInfo(
 		_hCurrentProcess,
 		modBase,
 		typeID,
@@ -410,7 +409,7 @@ std::string GetNameableTypeName(ULONG64 modBase, ULONG typeID)
 std::string GetTypeName(ULONG64 modBase, ULONG typeID)
 {
 	DWORD symTag;
-	::SymGetTypeInfo(_hCurrentProcess, modBase, typeID, TI_GET_SYMTAG, &symTag);
+	SymGetTypeInfo(_hCurrentProcess, modBase, typeID, TI_GET_SYMTAG, &symTag);
 
 	switch (symTag)
 	{
@@ -568,7 +567,7 @@ std::string GetEnumTypeValue(ULONG64 modBase, ULONG typeID, const BYTE* pData)
 	std::string ret = "";
 
 	DWORD childrenCount;
-	::SymGetTypeInfo(
+	SymGetTypeInfo(
 		_hCurrentProcess,
 		modBase,
 		typeID,
@@ -579,7 +578,7 @@ std::string GetEnumTypeValue(ULONG64 modBase, ULONG typeID, const BYTE* pData)
 	pFindParams->Start = 0;
 	pFindParams->Count = childrenCount;
 
-	::SymGetTypeInfo(
+	SymGetTypeInfo(
 		_hCurrentProcess,
 		modBase,
 		typeID,
@@ -589,7 +588,7 @@ std::string GetEnumTypeValue(ULONG64 modBase, ULONG typeID, const BYTE* pData)
 	for (int i = 0; i != childrenCount; i++)
 	{
 		VARIANT enumValue;
-		::SymGetTypeInfo(
+		SymGetTypeInfo(
 			_hCurrentProcess,
 			modBase,
 			pFindParams->ChildId[i],
@@ -600,7 +599,7 @@ std::string GetEnumTypeValue(ULONG64 modBase, ULONG typeID, const BYTE* pData)
 		if (VariantEqual(enumValue, baseType, pData))
 		{
 			WCHAR* pBuffer;
-			::SymGetTypeInfo(
+			SymGetTypeInfo(
 				_hCurrentProcess,
 				modBase,
 				pFindParams->ChildId[i],
@@ -627,7 +626,7 @@ std::string GetEnumTypeValue(ULONG64 modBase, ULONG typeID, const BYTE* pData)
 std::string GetArrayTypeValue(ULONG64 modBase, ULONG typeID, const BYTE* pData)
 {
 	DWORD elemCount;
-	::SymGetTypeInfo(
+	SymGetTypeInfo(
 		_hCurrentProcess,
 		modBase,
 		typeID,
@@ -637,7 +636,7 @@ std::string GetArrayTypeValue(ULONG64 modBase, ULONG typeID, const BYTE* pData)
 	elemCount = elemCount > 6 ? 6 : elemCount; // 数组最多显示前6个
 
 	DWORD innerTypeID;
-	::SymGetTypeInfo(
+	SymGetTypeInfo(
 		_hCurrentProcess,
 		modBase,
 		typeID,
@@ -645,7 +644,7 @@ std::string GetArrayTypeValue(ULONG64 modBase, ULONG typeID, const BYTE* pData)
 		&innerTypeID);
 
 	ULONG64 elemLen; // TODO: 如果数组成员是struct呢 ??
-	::SymGetTypeInfo(
+	SymGetTypeInfo(
 		_hCurrentProcess,
 		modBase,
 		innerTypeID,
@@ -667,7 +666,7 @@ std::string GetDataMemberInfo(ULONG64 modBase, ULONG memberID, const BYTE* pData
 	std::string ret = "";
 
 	DWORD memberTag;
-	::SymGetTypeInfo(
+	SymGetTypeInfo(
 		_hCurrentProcess,
 		modBase,
 		memberID,
@@ -680,7 +679,7 @@ std::string GetDataMemberInfo(ULONG64 modBase, ULONG memberID, const BYTE* pData
 	}
 
 	DWORD memberTypeID;
-	::SymGetTypeInfo(
+	SymGetTypeInfo(
 		_hCurrentProcess,
 		modBase,
 		memberID,
@@ -692,7 +691,7 @@ std::string GetDataMemberInfo(ULONG64 modBase, ULONG memberID, const BYTE* pData
 	if (memberTag == SymTagData)
 	{
 		WCHAR* name;
-		::SymGetTypeInfo(
+		SymGetTypeInfo(
 			_hCurrentProcess,
 			modBase,
 			memberID,
@@ -710,7 +709,7 @@ std::string GetDataMemberInfo(ULONG64 modBase, ULONG memberID, const BYTE* pData
 
 	/*
 	ULONG64 length;
-	::SymGetTypeInfo(
+	SymGetTypeInfo(
 		_hCurrentProcess,
 		modBase,
 		memberTypeID,
@@ -721,7 +720,7 @@ std::string GetDataMemberInfo(ULONG64 modBase, ULONG memberID, const BYTE* pData
 	*/
 
 	DWORD offset;
-	::SymGetTypeInfo(
+	SymGetTypeInfo(
 		_hCurrentProcess,
 		modBase,
 		memberID,
@@ -740,7 +739,7 @@ std::string GetUDTTypeValue(ULONG64 modBase, ULONG typeID, const BYTE* pData)
 	std::string ret = "{ ";
 
 	DWORD memberCount;
-	::SymGetTypeInfo(
+	SymGetTypeInfo(
 		_hCurrentProcess,
 		modBase,
 		typeID,
@@ -751,7 +750,7 @@ std::string GetUDTTypeValue(ULONG64 modBase, ULONG typeID, const BYTE* pData)
 	pFindParams->Start = 0;
 	pFindParams->Count = memberCount;
 
-	::SymGetTypeInfo(
+	SymGetTypeInfo(
 		_hCurrentProcess,
 		modBase,
 		typeID,
@@ -774,7 +773,7 @@ std::string GetUDTTypeValue(ULONG64 modBase, ULONG typeID, const BYTE* pData)
 std::string GetTypedefTypeValue(ULONG64 modBase, ULONG typeID, const BYTE* address)
 {
 	DWORD actTypeID;
-	::SymGetTypeInfo(
+	SymGetTypeInfo(
 		_hCurrentProcess,
 		modBase,
 		typeID,
@@ -787,7 +786,7 @@ std::string GetTypedefTypeValue(ULONG64 modBase, ULONG typeID, const BYTE* addre
 std::string GetTypeValue(ULONG64 modBase, ULONG typeID, const BYTE* address)
 {
 	DWORD symTag;
-	::SymGetTypeInfo(_hCurrentProcess, modBase,	typeID,	TI_GET_SYMTAG, &symTag);
+	SymGetTypeInfo(_hCurrentProcess, modBase, typeID, TI_GET_SYMTAG, &symTag);
 
 	switch (symTag)
 	{
@@ -893,7 +892,7 @@ void RetrieveFunVars(const STACKFRAME& sf)
 
 	IMAGEHLP_STACK_FRAME imagehlpStackFrame = {};
 	imagehlpStackFrame.InstructionOffset = dwAddress;
-	if (!::SymSetContext(_hCurrentProcess, &imagehlpStackFrame, 0) && GetLastError() != ERROR_SUCCESS)
+	if (!SymSetContext(_hCurrentProcess, &imagehlpStackFrame, 0) && GetLastError() != ERROR_SUCCESS)
 	{
 		// for symbols from kernel DLL we might not have access to their
 		// address, this is not a real error
@@ -901,7 +900,7 @@ void RetrieveFunVars(const STACKFRAME& sf)
 		return;
 	}
 
-	if (!::SymEnumSymbols(
+	if (!SymEnumSymbols(
 		_hCurrentProcess,
 		NULL,           // DLL base: use current context
 		NULL,           // no mask, get all symbols
@@ -922,7 +921,7 @@ void RetrieveFunName(const STACKFRAME& sf)
 	pSymbol->MaxNameLen = MAX_SYM_NAME_LEN;
 
 	DWORD64 symDisplacement = 0;
-	if (!::SymFromAddr(_hCurrentProcess, dwAddress, &symDisplacement, pSymbol))
+	if (!SymFromAddr(_hCurrentProcess, dwAddress, &symDisplacement, pSymbol))
 	{
 		// LOG_LAST_ERROR();
 		AppendCrashLog("%08X, SymFromAddr Failed \r\n", dwAddress);
@@ -931,7 +930,7 @@ void RetrieveFunName(const STACKFRAME& sf)
 
 	IMAGEHLP_LINE line = { sizeof(IMAGEHLP_LINE) };
 	DWORD dwLineDisplacement = 0;
-	if (!::SymGetLineFromAddr(_hCurrentProcess, dwAddress, &dwLineDisplacement, &line))
+	if (!SymGetLineFromAddr(_hCurrentProcess, dwAddress, &dwLineDisplacement, &line))
 	{
 		// it is normal that we don't have source info for some symbols,
 		// notably all the ones from the system DLLs...
@@ -971,15 +970,15 @@ void WalkCrashCallStack(CONTEXT ct, size_t skip = 0, size_t depth = 20)
 	// iterate over all stack frames
 	for (size_t nLevel = 0; nLevel < depth; nLevel++)
 	{
-		if (!::StackWalk(
+		if (!StackWalk(
 			mt,
 			_hCurrentProcess,
-			::GetCurrentThread(),
+			GetCurrentThread(),
 			&sf,
 			&ct,     // 注意: ct可能被修改 
 			nullptr, // read memory function (default)
-			::SymFunctionTableAccess,
-			::SymGetModuleBase,
+			SymFunctionTableAccess,
+			SymGetModuleBase,
 			nullptr))// address translator for 16 bit
 		{
 			break;
@@ -1040,7 +1039,7 @@ bool WriteCrashLog(const std::string& filename, PEXCEPTION_POINTERS eps)
 
 	AppendCrashLog(("Call Stack:\r\n------------------------------------------------------\r\n"));
 
-	if (!::SymInitialize(_hCurrentProcess, nullptr, TRUE))
+	if (!SymInitialize(_hCurrentProcess, nullptr, TRUE))
 	{
 		AppendCrashLog("SymInitialize failed");
 	}
@@ -1058,10 +1057,10 @@ void DoCrashShow(PEXCEPTION_POINTERS eps)
 {
 	if (!eps)
 	{
-		::MessageBoxA(GetActiveWindow(), "Invaild eps.", CRASH_MSGBOX_CAPTION, 0);
+		MessageBoxA(GetActiveWindow(), "Invaild eps.", CRASH_MSGBOX_CAPTION, 0);
 	}
 
-	_hCurrentProcess = ::GetCurrentProcess();
+	_hCurrentProcess = GetCurrentProcess();
 	std::string curFileName = GenDumpFileName();
 
 	std::string dmpFileName = curFileName + ".dmp";
@@ -1070,7 +1069,7 @@ void DoCrashShow(PEXCEPTION_POINTERS eps)
 	std::string logFileName = curFileName + ".log";
 	WriteCrashLog(logFileName, eps);
 
-	::MessageBoxA(GetActiveWindow(), "Click OK to open the crash log file.", CRASH_MSGBOX_CAPTION, 0);
+	MessageBoxA(GetActiveWindow(), "Click OK to open the crash log file.", CRASH_MSGBOX_CAPTION, 0);
 
-	::ShellExecuteA(0, "open", "explorer.exe", ("/select," + logFileName).c_str(), nullptr, SW_SHOWNORMAL);
+	ShellExecuteA(0, "open", "explorer.exe", ("/select," + logFileName).c_str(), nullptr, SW_SHOWNORMAL);
 }

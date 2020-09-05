@@ -16,7 +16,7 @@ bool CreateCrashLog(const std::string& filename)
 		CloseHandle(_hCrashLogFile);
 	}
 
-	_hCrashLogFile = ::CreateFileA(
+	_hCrashLogFile = CreateFileA(
 		filename.c_str(),
 		GENERIC_WRITE,
 		0,

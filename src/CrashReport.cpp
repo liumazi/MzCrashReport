@@ -15,7 +15,7 @@ bool InitCrashReport()
 	bool ret = SetupCrashHanders();
 	if (!ret)
 	{
-		::MessageBoxA(GetActiveWindow(), "InitCrashReport failed.", CRASH_MSGBOX_CAPTION, 0);
+		MessageBoxA(GetActiveWindow(), "InitCrashReport failed.", CRASH_MSGBOX_CAPTION, 0);
 	}
 	return ret;
 }
