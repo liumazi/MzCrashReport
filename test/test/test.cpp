@@ -3,6 +3,7 @@
 
 #include "stdafx.h"
 #include "CrashReport.h"
+#include <string>
 
 struct struct1
 {
@@ -10,7 +11,7 @@ struct struct1
 	int* p;
 };
 
-void fun1(struct1 s1[2], int ii[6])
+void fun1(struct1 s1[2], int ii[6], std::string s)
 {
 	s1[0].aa = *s1[0].p;
 }
@@ -30,7 +31,7 @@ int _tmain(int argc, _TCHAR* argv[])
 			struct1 test1[2];
 			test1[0].p = nullptr;
 			int ii[6];
-			fun1(test1, ii);
+			fun1(test1, ii, "mz");
 			//*((int*)6) = 6;
 			break;
 
@@ -41,4 +42,3 @@ int _tmain(int argc, _TCHAR* argv[])
 
 	return 0;
 }
-

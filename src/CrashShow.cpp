@@ -471,21 +471,21 @@ std::string GetBaseTypeValue(ULONG64 modBase, ULONG typeID, const BYTE* pData)
 		char c = *((char*)pData);
 		if (c >= 0x21 && c <= 0x7F)
 		{
-			return "'" + std::string(c, 1) + "'";
+			return "'" + std::string(1, c) + "'";
 		}
 		else
 		{
-			sprintf(_tempBuffer, "0x%02X", c);
+			sprintf(_tempBuffer, "0x%02X", c & 0x00FF);
 			return _tempBuffer;
 		}
 	}
 
 	case BASE_TYPE_UCHAR:
-		sprintf(_tempBuffer, "0x%02X", *((unsigned char*)pData));
+		sprintf(_tempBuffer, "0x%02X", *((unsigned char*)pData) & 0x00FF);
 		return _tempBuffer;
 
 	case BASE_TYPE_WCHAR:		
-		sprintf(_tempBuffer, "0x%08X", *((wchar_t*)pData));
+		sprintf(_tempBuffer, "0x%04X", *((wchar_t*)pData) & 0x00FFFF);
 		return _tempBuffer;
 
 	case BASE_TYPE_SHORT:
@@ -535,7 +535,7 @@ std::string GetBaseTypeValue(ULONG64 modBase, ULONG typeID, const BYTE* pData)
 
 std::string GetPointerTypeValue(ULONG64 modBase, ULONG typeID, const BYTE* pData)
 {
-	sprintf(_tempBuffer, "%p", *((void**)pData));
+	sprintf(_tempBuffer, "0x%p", *((void**)pData));
 	return _tempBuffer;
 }
 
@@ -832,14 +832,10 @@ std::string GetTypeValue(ULONG64 modBase, ULONG typeID, const BYTE* address)
 
 #define MAX_TI_FINDCHILDREN_NUM 66
 
-bool RetrieveFunVarDetail(const SYMBOL_INFO *pSymInfo, const BYTE* pVariable, int level)
+bool RetrieveFunVarDetail(const SYMBOL_INFO *pSymInfo, const BYTE* pVariable)
 {
 	bool ret = false;
 
-	for (int i = 0; i < level; i++)
-	{
-		AppendCrashLog("\t");
-	}
 	AppendCrashLog("%s %s %s \n\r", GetTypeName(pSymInfo->ModBase, pSymInfo->TypeIndex).c_str(), pSymInfo->Name, GetTypeValue(pSymInfo->ModBase, pSymInfo->TypeIndex, pVariable).c_str());
 
 	/*
@@ -976,7 +972,7 @@ bool RetrieveFunVar(const SYMBOL_INFO *pSymInfo, const STACKFRAME *sf)
 		pVariable = (const BYTE*)pSymInfo->Address; // It must be a global variable
 	}
 
-	return RetrieveFunVarDetail(pSymInfo, pVariable, 0);
+	return RetrieveFunVarDetail(pSymInfo, pVariable);
 	/*
 	// Determine if the variable is a user defined type (UDT). IF so, will return true.
 	if (!)
