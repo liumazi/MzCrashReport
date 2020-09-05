@@ -1003,6 +1003,11 @@ void WalkCrashCallStack(CONTEXT ct, size_t skip = 0, size_t depth = 20)
 bool WriteCrashLog(const std::string& filename, PEXCEPTION_POINTERS eps)
 {
 	CreateCrashLog(filename);
+	
+	AppendCrashLog("\r\n");
+	AppendCrashLog("======================================================\r\n");
+	AppendCrashLog("=               MzCrashReport v0.1                   =\r\n");
+	AppendCrashLog("======================================================\r\n\r\n");
 
 	_tempBuffer[0] = 0;
 	DWORD code = eps->ExceptionRecord->ExceptionCode;
@@ -1017,7 +1022,7 @@ bool WriteCrashLog(const std::string& filename, PEXCEPTION_POINTERS eps)
 	}
 	AppendCrashLog("ModuleFileName: %s \r\n\r\n", _tempBuffer);
 
-	AppendCrashLog("CurrentThreadId: %d\r\n\r\n", ::GetCurrentThreadId());
+	AppendCrashLog("CurrentThreadId: %d\r\n\r\n", GetCurrentThreadId());
 
 	AppendCrashLog("ExceptionAddress: 0x%08X\r\n", (DWORD)(addr));
 
