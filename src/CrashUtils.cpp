@@ -6,6 +6,8 @@
 
 #include <windows.h>
 #include <time.h>
+#include <locale>
+#include <codecvt>
 
 #include "CrashUtils.h"
 
@@ -37,4 +39,10 @@ std::string GenDumpFileName()
 		ltime->tm_sec);
 
 	return buff;
+}
+
+std::string WStringToString(const std::wstring& wstr)
+{
+	std::wstring_convert<std::codecvt_utf8<wchar_t>> cvter;
+	return cvter.to_bytes(wstr);
 }

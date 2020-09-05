@@ -11,3 +11,5 @@
 #define CRASH_MSGBOX_CAPTION "MzCrashReport"
 
 std::string GenDumpFileName();
+
+std::string WStringToString(const std::wstring& wstr);

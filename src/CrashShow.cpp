@@ -4,8 +4,6 @@
 // Created by liuliu.mz on 20-08-28
 //
 
-#include <locale>
-#include <codecvt>
 #include <windows.h>
 #include <dbghelp.h>
 #pragma comment(lib, "dbghelp.lib")
@@ -19,6 +17,11 @@
 
 static HANDLE _hCurrentProcess = 0;
 static CHAR _tempBuffer[sizeof(SYMBOL_INFO) + MAX_SYM_NAME_LEN] = {};
+
+// 前置声明
+std::string GetTypeName(ULONG64 modBase, ULONG typeID);
+std::string GetTypeValue(ULONG64 modBase, ULONG typeID, const BYTE* address);
+//
 
 bool WriteCrashDmp(const std::string& filename, PEXCEPTION_POINTERS eps)
 {
@@ -179,7 +182,7 @@ char* FormatOutputValue(char* pszCurrBuffer, BasicType basicType, DWORD64 length
 
 static std::string _baseTypeNames[BASE_TYPE_END] =
 {
-	"none type",
+	"none_type_?",
 	"void",
 	"bool",
 	"char",
@@ -279,8 +282,6 @@ int GetBaseType(ULONG64 modBase, ULONG typeID)
 	}
 }
 
-std::string GetTypeName(ULONG64 modBase, ULONG typeID); // 前置声明
-
 std::string GetBaseTypeName(ULONG64 modBase, ULONG typeID)
 {
 	return _baseTypeNames[GetBaseType(modBase, typeID)];
@@ -297,7 +298,7 @@ std::string GetPointerTypeName(ULONG64 modBase, ULONG typeID)
 		&isReference);
 
 	ULONG innerTypeID;
-	SymGetTypeInfo(
+	::SymGetTypeInfo(
 		_hCurrentProcess,
 		modBase,
 		typeID,
@@ -310,7 +311,7 @@ std::string GetPointerTypeName(ULONG64 modBase, ULONG typeID)
 std::string GetArrayTypeName(ULONG64 modBase, ULONG typeID)
 {
 	ULONG innerTypeID;
-	SymGetTypeInfo(
+	::SymGetTypeInfo(
 		_hCurrentProcess,
 		modBase,
 		typeID,
@@ -318,7 +319,7 @@ std::string GetArrayTypeName(ULONG64 modBase, ULONG typeID)
 		&innerTypeID);
 
 	DWORD elemCount;
-	SymGetTypeInfo(
+	::SymGetTypeInfo(
 		_hCurrentProcess,
 		modBase,
 		typeID,
@@ -330,10 +331,10 @@ std::string GetArrayTypeName(ULONG64 modBase, ULONG typeID)
 
 std::string GetFunctionTypeName(ULONG64 modBase, ULONG typeID)
 {
-	std::string ret;
+	std::string ret = "";
 
 	DWORD paramCount;
-	SymGetTypeInfo(
+	::SymGetTypeInfo(
 		_hCurrentProcess,
 		modBase,
 		typeID,
@@ -341,7 +342,7 @@ std::string GetFunctionTypeName(ULONG64 modBase, ULONG typeID)
 		&paramCount);
 
 	ULONG returnTypeID;
-	SymGetTypeInfo(
+	::SymGetTypeInfo(
 		_hCurrentProcess,
 		modBase,
 		typeID,
@@ -355,7 +356,7 @@ std::string GetFunctionTypeName(ULONG64 modBase, ULONG typeID)
 	pFindParams->Count = paramCount;
 	pFindParams->Start = 0;
 
-	SymGetTypeInfo(
+	::SymGetTypeInfo(
 		_hCurrentProcess,
 		modBase,
 		typeID,
@@ -367,7 +368,7 @@ std::string GetFunctionTypeName(ULONG64 modBase, ULONG typeID)
 	for (DWORD i = 0; i < paramCount; i++)
 	{
 		DWORD paramTypeID;
-		SymGetTypeInfo(
+		::SymGetTypeInfo(
 			_hCurrentProcess,
 			modBase,
 			pFindParams->ChildId[i],
@@ -393,19 +394,17 @@ std::string GetNameableTypeName(ULONG64 modBase, ULONG typeID)
 {
 	WCHAR* symName;
 
-	SymGetTypeInfo(
+	::SymGetTypeInfo(
 		_hCurrentProcess,
 		modBase,
 		typeID,
 		TI_GET_SYMNAME,
 		&symName);
 
-	std::wstring ret = symName;
-
+	std::string ret = WStringToString(symName);
 	LocalFree(symName);
 
-	std::wstring_convert<std::codecvt_utf8<wchar_t>> cvter;
-	return cvter.to_bytes(ret);
+	return ret;
 }
 
 std::string GetTypeName(ULONG64 modBase, ULONG typeID)
@@ -432,16 +431,408 @@ std::string GetTypeName(ULONG64 modBase, ULONG typeID)
 
 	case SymTagFunctionType:
 		return GetFunctionTypeName(modBase, typeID);
+		
+	default:
+		return "unkown_type_?";
+	}
+}
+/*
+void ShowVariableValue(const VARIABLE_INFO* pVarInfo)
+{
+	BYTE* pData = (BYTE*)malloc(sizeof(BYTE) * pVarInfo->size);
+	ReadDebuggeeMemory(pVarInfo->address, pVarInfo->size, pData);
+
+	std::wcout << GetTypeValue(
+		pVarInfo->typeID,
+		pVarInfo->modBase,
+		pVarInfo->address,
+		pData);
+
+	free(pData);
+}*/
+
+std::string GetBaseTypeValue(ULONG64 modBase, ULONG typeID, const BYTE* pData)
+{
+	int baseType = GetBaseType(modBase, typeID);
+
+	switch (baseType)
+	{
+	case BASE_TYPE_NONE:
+		return "none_value_?";
+
+	case BASE_TYPE_VOID:
+		return "void_value_?";
+
+	case BASE_TYPE_BOOL:
+		return *pData == 0 ? "false" : "true";
+
+	case BASE_TYPE_CHAR:
+	{
+		char c = *((char*)pData);
+		if (c >= 0x21 && c <= 0x7F)
+		{
+			return "'" + std::string(c, 1) + "'";
+		}
+		else
+		{
+			sprintf(_tempBuffer, "0x%02X", c);
+			return _tempBuffer;
+		}
+	}
+
+	case BASE_TYPE_UCHAR:
+		sprintf(_tempBuffer, "0x%02X", *((unsigned char*)pData));
+		return _tempBuffer;
+
+	case BASE_TYPE_WCHAR:		
+		sprintf(_tempBuffer, "0x%08X", *((wchar_t*)pData));
+		return _tempBuffer;
+
+	case BASE_TYPE_SHORT:
+		sprintf(_tempBuffer, "%d", *((short*)pData));
+		return _tempBuffer;
+
+	case BASE_TYPE_USHORT:
+		sprintf(_tempBuffer, "%u", *((unsigned short*)pData));
+		return _tempBuffer;
+
+	case BASE_TYPE_INT:
+		sprintf(_tempBuffer, "%d", *((int*)pData));
+		return _tempBuffer;
+
+	case BASE_TYPE_UINT:
+		sprintf(_tempBuffer, "%u", *((unsigned int*)pData));
+		return _tempBuffer;
+
+	case BASE_TYPE_LONG:
+		sprintf(_tempBuffer, "%d", *((long*)pData));
+		return _tempBuffer;
+
+	case BASE_TYPE_ULONG:
+		sprintf(_tempBuffer, "%u", *((unsigned long*)pData));
+		return _tempBuffer;
+
+	case BASE_TYPE_LONGLONG:
+		sprintf(_tempBuffer, "%lld", *((long long*)pData));
+		return _tempBuffer;
+
+	case BASE_TYPE_ULONGLONG:
+		sprintf(_tempBuffer, "%llu", *((unsigned long long*)pData));
+		return _tempBuffer;
+
+	case BASE_TYPE_FLOAT:
+		sprintf(_tempBuffer, "%f", *((float*)pData));
+		return _tempBuffer;
+
+	case BASE_TYPE_DOUBLE:
+		sprintf(_tempBuffer, "%lf", *((double*)pData));
+		return _tempBuffer;
 
 	default:
-		return "unkown_type";
+		return "unkown_value_?";
 	}
 }
 
+std::string GetPointerTypeValue(ULONG64 modBase, ULONG typeID, const BYTE* pData)
+{
+	sprintf(_tempBuffer, "%p", *((void**)pData));
+	return _tempBuffer;
+}
+
+bool VariantEqual(const VARIANT &var, int baseType, const BYTE* pData)
+{
+	switch (baseType)
+	{
+	case BASE_TYPE_CHAR:
+		return var.cVal == *((char*)pData);
+
+	case BASE_TYPE_UCHAR:
+		return var.bVal == *((unsigned char*)pData);
+
+	case BASE_TYPE_SHORT:
+		return var.iVal == *((short*)pData);
+
+	case BASE_TYPE_WCHAR:
+	case BASE_TYPE_USHORT:
+		return var.uiVal == *((unsigned short*)pData);
+
+	case BASE_TYPE_UINT:
+		return var.uintVal == *((int*)pData);
+
+	case BASE_TYPE_LONG:
+		return var.lVal == *((long*)pData);
+
+	case BASE_TYPE_ULONG:
+		return var.ulVal == *((unsigned long*)pData);
+
+	case BASE_TYPE_LONGLONG:
+		return var.llVal == *((long long*)pData);
+
+	case BASE_TYPE_ULONGLONG:
+		return var.ullVal == *((unsigned long long*)pData);
+
+	case BASE_TYPE_INT:
+	default:
+		return var.intVal == *((int*)pData);
+	}
+}
+
+std::string GetEnumTypeValue(ULONG64 modBase, ULONG typeID, const BYTE* pData)
+{
+	std::string ret = "";
+
+	DWORD childrenCount;
+	::SymGetTypeInfo(
+		_hCurrentProcess,
+		modBase,
+		typeID,
+		TI_GET_CHILDRENCOUNT,
+		&childrenCount);
+
+	TI_FINDCHILDREN_PARAMS* pFindParams = (TI_FINDCHILDREN_PARAMS*)malloc(sizeof(TI_FINDCHILDREN_PARAMS) + childrenCount * sizeof(ULONG));
+	pFindParams->Start = 0;
+	pFindParams->Count = childrenCount;
+
+	::SymGetTypeInfo(
+		_hCurrentProcess,
+		modBase,
+		typeID,
+		TI_FINDCHILDREN,
+		pFindParams);
+
+	for (int i = 0; i != childrenCount; i++)
+	{
+		VARIANT enumValue;
+		::SymGetTypeInfo(
+			_hCurrentProcess,
+			modBase,
+			pFindParams->ChildId[i],
+			TI_GET_VALUE,
+			&enumValue);
+
+		int baseType = GetBaseType(modBase, typeID);
+		if (VariantEqual(enumValue, baseType, pData))
+		{
+			WCHAR* pBuffer;
+			::SymGetTypeInfo(
+				_hCurrentProcess,
+				modBase,
+				pFindParams->ChildId[i],
+				TI_GET_SYMNAME,
+				&pBuffer);
+
+			ret = WStringToString(pBuffer);
+			LocalFree(pBuffer);
+
+			break;
+		}
+	}
+
+	free(pFindParams);
+
+	if (ret.length() == 0)
+	{
+		ret = GetBaseTypeValue(modBase, typeID, pData);
+	}
+
+	return ret;
+}
+
+std::string GetArrayTypeValue(ULONG64 modBase, ULONG typeID, const BYTE* pData)
+{
+	DWORD elemCount;
+	::SymGetTypeInfo(
+		_hCurrentProcess,
+		modBase,
+		typeID,
+		TI_GET_COUNT,
+		&elemCount);
+
+	elemCount = elemCount > 6 ? 6 : elemCount; // 数组最多显示前6个
+
+	DWORD innerTypeID;
+	::SymGetTypeInfo(
+		_hCurrentProcess,
+		modBase,
+		typeID,
+		TI_GET_TYPEID,
+		&innerTypeID);
+
+	ULONG64 elemLen; // TODO: 如果数组成员是struct呢 ??
+	::SymGetTypeInfo(
+		_hCurrentProcess,
+		modBase,
+		innerTypeID,
+		TI_GET_LENGTH,
+		&elemLen);
+
+	std::string ret = "";
+
+	for (int i = 0; i != elemCount; i++)
+	{
+		ret += "[" + std::to_string(i) + "] " + GetTypeValue(modBase, innerTypeID, pData + i * elemLen) + "\r\n";
+	}
+
+	return ret;
+}
+
+std::string GetDataMemberInfo(ULONG64 modBase, ULONG memberID, const BYTE* pData)
+{
+	std::string ret = "";
+
+	DWORD memberTag;
+	::SymGetTypeInfo(
+		_hCurrentProcess,
+		modBase,
+		memberID,
+		TI_GET_SYMTAG,
+		&memberTag);
+
+	if (memberTag != SymTagData && memberTag != SymTagBaseClass)
+	{
+		return ret;
+	}
+
+	ret += "  ";
+
+	DWORD memberTypeID;
+	::SymGetTypeInfo(
+		_hCurrentProcess,
+		modBase,
+		memberID,
+		TI_GET_TYPEID,
+		&memberTypeID);
+
+	ret += GetTypeName(modBase, memberTypeID);
+
+	if (memberTag == SymTagData)
+	{
+		WCHAR* name;
+		::SymGetTypeInfo(
+			_hCurrentProcess,
+			modBase,
+			memberID,
+			TI_GET_SYMNAME,
+			&name);
+
+		ret += "  " + WStringToString(name);
+
+		LocalFree(name);
+	}
+	else
+	{
+		ret += "  <base-class>"; // ??
+	}
+
+	ULONG64 length;
+	::SymGetTypeInfo(
+		_hCurrentProcess,
+		modBase,
+		memberTypeID,
+		TI_GET_LENGTH,
+		&length);
+
+	ret += "  " + std::to_string(length);
+
+	DWORD offset;
+	::SymGetTypeInfo(
+		_hCurrentProcess,
+		modBase,
+		memberID,
+		TI_GET_OFFSET,
+		&offset);
+
+	const BYTE* childAddress = pData + offset;
+
+	//valueBuilder << TEXT("  ") << std::hex << std::uppercase << std::setfill(TEXT('0')) << std::setw(8) << childAddress << std::dec;
+
+	ret += GetTypeValue(modBase, memberTypeID, childAddress);
+
+	return ret;
+}
+
+std::string GetUDTTypeValue(ULONG64 modBase, ULONG typeID, const BYTE* pData)
+{
+	std::string ret = "";
+
+	DWORD memberCount;
+	::SymGetTypeInfo(
+		_hCurrentProcess,
+		modBase,
+		typeID,
+		TI_GET_CHILDRENCOUNT,
+		&memberCount);
+
+	TI_FINDCHILDREN_PARAMS* pFindParams = (TI_FINDCHILDREN_PARAMS*)malloc(sizeof(TI_FINDCHILDREN_PARAMS) + memberCount * sizeof(ULONG));
+	pFindParams->Start = 0;
+	pFindParams->Count = memberCount;
+
+	::SymGetTypeInfo(
+		_hCurrentProcess,
+		modBase,
+		typeID,
+		TI_FINDCHILDREN,
+		pFindParams);
+
+	for (int i = 0; i != memberCount; ++i)
+	{
+		std::string memberValue = GetDataMemberInfo(modBase, pFindParams->ChildId[i], pData);
+
+		if (memberValue.length() > 0)
+		{
+			ret += memberValue;
+		}
+	}
+
+	return ret;
+}
+
+std::string GetTypedefTypeValue(ULONG64 modBase, ULONG typeID, const BYTE* address)
+{
+	DWORD actTypeID;
+	::SymGetTypeInfo(
+		_hCurrentProcess,
+		modBase,
+		typeID,
+		TI_GET_TYPEID,
+		&actTypeID);
+
+	return GetTypeValue(modBase, actTypeID, address);
+}
+
+std::string GetTypeValue(ULONG64 modBase, ULONG typeID, const BYTE* address)
+{
+	DWORD symTag;
+	::SymGetTypeInfo(_hCurrentProcess, modBase,	typeID,	TI_GET_SYMTAG, &symTag);
+
+	switch (symTag)
+	{
+	case SymTagBaseType:
+		return GetBaseTypeValue(modBase, typeID, address);
+
+	case SymTagPointerType:
+		return GetPointerTypeValue(modBase, typeID, address);
+
+	case SymTagEnum:
+		return GetEnumTypeValue(modBase, typeID, address);
+
+	case SymTagArrayType:
+		return GetArrayTypeValue(modBase, typeID, address);
+
+	case SymTagUDT:
+		return GetUDTTypeValue(modBase, typeID, address);
+
+	case SymTagTypedef:
+		return GetTypedefTypeValue(modBase, typeID, address);
+
+	default:
+		return "unkown_value";
+	}
+}
 
 #define MAX_TI_FINDCHILDREN_NUM 66
 
-bool RetrieveFunVarSummary(const SYMBOL_INFO *pSymInfo, DWORD_PTR offset, int level)
+bool RetrieveFunVarDetail(const SYMBOL_INFO *pSymInfo, const BYTE* pVariable, int level)
 {
 	bool ret = false;
 
@@ -449,7 +840,7 @@ bool RetrieveFunVarSummary(const SYMBOL_INFO *pSymInfo, DWORD_PTR offset, int le
 	{
 		AppendCrashLog("\t");
 	}
-	AppendCrashLog("%s %s \n\r", GetTypeName(pSymInfo->ModBase, pSymInfo->TypeIndex).c_str(), pSymInfo->Name);
+	AppendCrashLog("%s %s %s \n\r", GetTypeName(pSymInfo->ModBase, pSymInfo->TypeIndex).c_str(), pSymInfo->Name, GetTypeValue(pSymInfo->ModBase, pSymInfo->TypeIndex, pVariable));
 
 	/*
 
@@ -564,13 +955,13 @@ bool RetrieveFunVar(const SYMBOL_INFO *pSymInfo, const STACKFRAME *sf)
 	//if (pSymInfo->Tag == SymTagFunction)
 	//	return false;
 
-	DWORD_PTR pVariable = 0; // Will point to the variable's data in memory
+	const BYTE* pVariable = 0; // Will point to the variable's data in memory
 
 	if (pSymInfo->Flags & IMAGEHLP_SYMBOL_INFO_REGRELATIVE) // SYMFLAG_REGREL
 	{
 		//if ( pSymInfo->Register == 8 ) // EBP is the value 8 (in DBGHELP 5.1)
 		{                                // This may change !!! ??
-			pVariable = sf->AddrFrame.Offset; // TODO: EBP ??
+			pVariable = (const BYTE*)sf->AddrFrame.Offset;           // TODO: esp - 4 or ebp ?? see GetSymbolAddress() in vHandler.cpp of MiniDebugger10
 			pVariable += (DWORD_PTR)pSymInfo->Address;
 		}
 		//else
@@ -582,10 +973,10 @@ bool RetrieveFunVar(const SYMBOL_INFO *pSymInfo, const STACKFRAME *sf)
 	}
 	else
 	{
-		pVariable = (DWORD_PTR)pSymInfo->Address; // It must be a global variable
+		pVariable = (const BYTE*)pSymInfo->Address; // It must be a global variable
 	}
 
-	return RetrieveFunVarSummary(pSymInfo, pVariable, 0);
+	return RetrieveFunVarDetail(pSymInfo, pVariable, 0);
 	/*
 	// Determine if the variable is a user defined type (UDT). IF so, will return true.
 	if (!)
@@ -706,7 +1097,7 @@ void WalkCrashCallStack(CONTEXT ct, size_t skip = 0, size_t depth = 20)
 #error "Need to initialize STACKFRAME on non x86"
 #endif // _M_IX86
 
-	std::string ret;
+	std::string ret = "";
 
 	// iterate over all stack frames
 	for (size_t nLevel = 0; nLevel < depth; nLevel++)

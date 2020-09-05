@@ -4,6 +4,17 @@
 #include "stdafx.h"
 #include "CrashReport.h"
 
+struct struct1
+{
+	int aa;
+	int* p;
+};
+
+void fun1(struct1 s1, int ii[6])
+{
+	s1.aa = *s1.p;
+}
+
 int _tmain(int argc, _TCHAR* argv[])
 {
 	InitCrashReport();
@@ -16,7 +27,11 @@ int _tmain(int argc, _TCHAR* argv[])
 		switch (crashno)
 		{
 		case 0:
-			*((int*)6) = 6;
+			struct1 test1;
+			test1.p = nullptr;
+			int ii[6];
+			fun1(test1, ii);
+			//*((int*)6) = 6;
 			break;
 
 		default:
