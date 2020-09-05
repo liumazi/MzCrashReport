@@ -666,14 +666,14 @@ std::string GetArrayTypeValue(ULONG64 modBase, ULONG typeID, const BYTE* pData)
 		TI_GET_LENGTH,
 		&elemLen);
 
-	std::string ret = "";
+	std::string ret = "{ ";
 
 	for (int i = 0; i != elemCount; i++)
 	{
-		ret += "[" + std::to_string(i) + "] " + GetTypeValue(modBase, innerTypeID, pData + i * elemLen) + "\r\n";
+		ret += "[" + std::to_string(i) + "] " + GetTypeValue(modBase, innerTypeID, pData + i * elemLen) + "; ";
 	}
 
-	return ret;
+	return ret + "}";
 }
 
 std::string GetDataMemberInfo(ULONG64 modBase, ULONG memberID, const BYTE* pData)
@@ -692,8 +692,6 @@ std::string GetDataMemberInfo(ULONG64 modBase, ULONG memberID, const BYTE* pData
 	{
 		return ret;
 	}
-
-	ret += "  ";
 
 	DWORD memberTypeID;
 	::SymGetTypeInfo(
@@ -715,15 +713,16 @@ std::string GetDataMemberInfo(ULONG64 modBase, ULONG memberID, const BYTE* pData
 			TI_GET_SYMNAME,
 			&name);
 
-		ret += "  " + WStringToString(name);
+		ret += " " + WStringToString(name) + " ";
 
 		LocalFree(name);
 	}
 	else
 	{
-		ret += "  <base-class>"; // ??
+		ret += " <base-class> "; // ??
 	}
 
+	/*
 	ULONG64 length;
 	::SymGetTypeInfo(
 		_hCurrentProcess,
@@ -732,7 +731,8 @@ std::string GetDataMemberInfo(ULONG64 modBase, ULONG memberID, const BYTE* pData
 		TI_GET_LENGTH,
 		&length);
 
-	ret += "  " + std::to_string(length);
+	ret += "  " + std::to_string(length) + " ";
+	*/
 
 	DWORD offset;
 	::SymGetTypeInfo(
@@ -744,7 +744,7 @@ std::string GetDataMemberInfo(ULONG64 modBase, ULONG memberID, const BYTE* pData
 
 	const BYTE* childAddress = pData + offset;
 
-	//valueBuilder << TEXT("  ") << std::hex << std::uppercase << std::setfill(TEXT('0')) << std::setw(8) << childAddress << std::dec;
+	// valueBuilder << TEXT("  ") << std::hex << std::uppercase << std::setfill(TEXT('0')) << std::setw(8) << childAddress << std::dec;
 
 	ret += GetTypeValue(modBase, memberTypeID, childAddress);
 
@@ -753,7 +753,7 @@ std::string GetDataMemberInfo(ULONG64 modBase, ULONG memberID, const BYTE* pData
 
 std::string GetUDTTypeValue(ULONG64 modBase, ULONG typeID, const BYTE* pData)
 {
-	std::string ret = "";
+	std::string ret = "{ ";
 
 	DWORD memberCount;
 	::SymGetTypeInfo(
@@ -780,11 +780,11 @@ std::string GetUDTTypeValue(ULONG64 modBase, ULONG typeID, const BYTE* pData)
 
 		if (memberValue.length() > 0)
 		{
-			ret += memberValue;
+			ret += memberValue + "; ";
 		}
 	}
 
-	return ret;
+	return ret + "}";
 }
 
 std::string GetTypedefTypeValue(ULONG64 modBase, ULONG typeID, const BYTE* address)
