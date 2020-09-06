@@ -91,7 +91,7 @@ int fun7()
 
 int fun8()
 {
-	//terminate(); // Debug下 点中止 无法抓到
+	//terminate();
 	throw("a");
 }
 
@@ -108,57 +108,74 @@ int fun9(int b)
 	}
 
 	printf("fun9 end \r\n");
+
+	return 66;
+}
+
+void fun10(int n)
+{
+	int b[1024*1024];
+	int x = 0;
+	for (int i = 0; i < 1024*1024; i++)
+	{
+		x += b[i];
+	}
+
+	if (n > 0)
+	{
+		fun10(n - 1);
+	}	
 }
 
 int _tmain(int argc, _TCHAR* argv[])
 {
 	InitCrashReport();
 
-	if (argc == 2)
+	int crashno = 10; // _tstoi(argv[1]);
+	printf("crashno %d\r\n", crashno);
+
+	switch (crashno)
 	{
-		int crashno = 0; // _tstoi(argv[1]);
-		printf("crashno %d\r\n", crashno);
+	case 0:
+		struct1 test1[2];
+		test1[0].p = nullptr;
+		int ii[6];
+		fun0(test1, ii, "mz");
+		//*((int*)6) = 6;
+		break;
 
-		switch (crashno)
-		{
-		case 0:
-			struct1 test1[2];
-			test1[0].p = nullptr;
-			int ii[6];
-			fun0(test1, ii, "mz");
-			//*((int*)6) = 6;
-			break;
+	case 1:
+		fun1();
 
-		case 1:
-			fun1();
+	case 2:
+		fun2();
 
-		case 2:
-			fun2();
+	case 3:
+		fun3();
 
-		case 3:
-			fun3();
+	case 4:
+		fun4();
 
-		case 4:
-			fun4();
+	case 5:
+		fun5();
 
-		case 5:
-			fun5();
+	case 6:
+		fun6();
 
-		case 6:
-			fun6();
+	case 7:
+		fun7();
 
-		case 7:
-			fun7();
+	case 8:
+		fun8();
 
-		case 8:
-			fun8();
+	case 9:
+		fun9(0);
 
-		case 9:
-			fun9(0);
+	case 10:
+		fun10(1024);
 
-		default:
-			break;
-		}
+	default:
+		break;
 	}
 
 	return 0;

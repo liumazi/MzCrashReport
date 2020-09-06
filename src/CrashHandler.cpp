@@ -24,9 +24,9 @@ static unexpected_function _Unexpected_Handler = nullptr;
 
 LONG WINAPI SEH_Handler(_In_ PEXCEPTION_POINTERS eps)
 {
+	// TODO: eps->ExceptionRecord->ExceptionCode == EXCEPTION_STACK_OVERFLOW ??
 	DoCrashShow(eps);
-
-	return EXCEPTION_EXECUTE_HANDLER; // ÒÑ±¨¸æ ÍË°É
+	return EXCEPTION_EXECUTE_HANDLER; // 886
 }
 
 #if _MSC_VER >= 1300
@@ -62,7 +62,7 @@ void Terminate_Handler()
 
 void Unexpected_Handler()
 {
-	RaiseException(MzExceptionBaseCode + 5, 0, 0, nullptr);
+	RaiseException(MzExceptionBaseCode + 6, 0, 0, nullptr);
 }
 
 LONG NTAPI Vectored_Handler(PEXCEPTION_POINTERS ExceptionInfo)
