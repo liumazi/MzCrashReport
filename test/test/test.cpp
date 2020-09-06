@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <assert.h>
+#include <windows.h>
 
 #include "stdafx.h"
 #include "CrashReport.h"
@@ -94,6 +95,21 @@ int fun8()
 	throw("a");
 }
 
+int fun9(int b)
+{
+	__try
+	{
+		printf("fun9 begin \r\n");
+		return 1 / b;
+	}
+	__except (EXCEPTION_EXECUTE_HANDLER)
+	{
+		printf("fun9 exception \r\n");
+	}
+
+	printf("fun9 end \r\n");
+}
+
 int _tmain(int argc, _TCHAR* argv[])
 {
 	InitCrashReport();
@@ -136,6 +152,9 @@ int _tmain(int argc, _TCHAR* argv[])
 
 		case 8:
 			fun8();
+
+		case 9:
+			fun9(0);
 
 		default:
 			break;

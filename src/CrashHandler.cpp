@@ -10,6 +10,7 @@
 
 #include "CrashHandler.h"
 #include "CrashShow.h"
+#include "CrashUtils.h"
 
 #define MzExceptionBaseCode 0x66666660
 
@@ -64,6 +65,44 @@ void Unexpected_Handler()
 	RaiseException(MzExceptionBaseCode + 5, 0, 0, nullptr);
 }
 
+LONG NTAPI Vectored_Handler(PEXCEPTION_POINTERS ExceptionInfo)
+{
+	MessageBoxA(0, "Vectored_Handler", CRASH_MSGBOX_CAPTION, 0);
+
+	if (ExceptionInfo)
+	{
+		DWORD exceptionCode = ExceptionInfo->ExceptionRecord->ExceptionCode;
+
+		bool ignoreException = 
+			(exceptionCode == 0xE06D7363) || // CPPExceptionCode
+			(exceptionCode == 0x406D1388) || // SetThreadNameExcetpionCode
+			(exceptionCode == DBG_PRINTEXCEPTION_C);
+
+		if (ignoreException)
+			return EXCEPTION_CONTINUE_SEARCH;
+
+		/*
+		_ExceptionCount++;
+
+		if (exceptionCode == DumpExceptionCode)
+		{
+			DumpExceptionInfo *info = (DumpExceptionInfo*)ExceptionInfo->ExceptionRecord->ExceptionInformation;
+			SaveExpceptionDump(*info, ExceptionInfo);
+
+			OnDumpExceptionCallback(info);
+		}
+		else
+		{
+			DumpExceptionInfo info;
+			info.dumpMode = dump_mode_mini;
+			info.dumpReason = dump_reason_catched;
+			SaveExpceptionDump(info, ExceptionInfo);
+		}
+		*/
+	}
+
+	return EXCEPTION_EXECUTE_HANDLER;
+}
 
 bool SetupCrashHanders()
 {
@@ -120,7 +159,7 @@ bool SetupCrashHanders()
 	// http://msdn.microsoft.com/en-us/library/h46t5b69.aspx  
 	_Unexpected_Handler = set_unexpected(Unexpected_Handler); // TODO: 暂未找到方法触发
 
-	//AddVectoredExceptionHandler
+	//AddVectoredExceptionHandler(1, Vectored_Handler);
 
 	return (_SEH_Handler != nullptr);
 }
