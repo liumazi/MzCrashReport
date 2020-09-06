@@ -99,7 +99,7 @@ bool SetupCrashHanders()
 #endif
 
 	// Catch an abnormal program termination
-	//_SigAbrt_Handler = signal(SIGABRT, SigAbrt_Handler); // SIGINT SIGTERM SIGKILL no need
+	_SigAbrt_Handler = signal(SIGABRT, SigAbrt_Handler); // SIGINT SIGTERM SIGKILL no need
 
 	// only for current thread, and no need, becasue SEH..
 	//signal(SIGSEGV, );
