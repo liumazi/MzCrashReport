@@ -46,7 +46,7 @@ void fun1()
 
 void fun2()
 {
-	assert(false); // Debug下 点中止 无法抓到
+	assert(false);
 }
 
 class test3base
@@ -116,7 +116,7 @@ int _tmain(int argc, _TCHAR* argv[])
 
 	if (argc == 2)
 	{
-		int crashno = _tstoi(argv[1]);
+		int crashno = 0; // _tstoi(argv[1]);
 		printf("crashno %d\r\n", crashno);
 
 		switch (crashno)
