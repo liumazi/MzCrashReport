@@ -5,6 +5,8 @@
 #include <vector>
 #include <assert.h>
 #include <windows.h>
+#include <exception>
+#include <stdexcept>
 
 #include "stdafx.h"
 #include "CrashReport.h"
@@ -127,6 +129,18 @@ void fun10(int n)
 	}	
 }
 
+void fun11()
+{
+	try
+	{
+		throw std::runtime_error("mz error");
+	}
+	catch (std::range_error)
+	{
+		printf("fun11 catch\r\n");
+	}	
+}
+
 int _tmain(int argc, _TCHAR* argv[])
 {
 	InitCrashReport();
@@ -172,7 +186,10 @@ int _tmain(int argc, _TCHAR* argv[])
 		fun9(0);
 
 	case 10:
-		fun10(1024);
+		fun10(6);
+
+	case 11:
+		fun11();
 
 	default:
 		break;

@@ -24,7 +24,7 @@ static unexpected_function _Unexpected_Handler = nullptr;
 
 LONG WINAPI SEH_Handler(_In_ PEXCEPTION_POINTERS eps)
 {
-	// TODO: eps->ExceptionRecord->ExceptionCode == EXCEPTION_STACK_OVERFLOW ??
+	// TODO: eps->ExceptionRecord->ExceptionCode == EXCEPTION_STACK_OVERFLOW ?? for release
 	DoCrashShow(eps);
 	return EXCEPTION_EXECUTE_HANDLER; // 886
 }
