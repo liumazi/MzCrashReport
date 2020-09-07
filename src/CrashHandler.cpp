@@ -12,8 +12,6 @@
 #include "CrashShow.h"
 #include "CrashUtils.h"
 
-#define MzExceptionBaseCode 0x66666660
-
 static LPTOP_LEVEL_EXCEPTION_FILTER _SEH_Handler = nullptr;
 static _purecall_handler _PureCall_Handler = nullptr;
 static _PNH _New_Handler = nullptr;
@@ -33,12 +31,12 @@ LONG WINAPI SEH_Handler(_In_ PEXCEPTION_POINTERS eps)
 // C++ pure virtual call handler
 void PureCall_Handler()
 {
-	RaiseException(MzExceptionBaseCode + 1, 0, 0, nullptr);
+	RaiseException(MZ_EXCEPTION_BASE_CODE + 0, 0, 0, nullptr);
 }
 
 int New_Handler(size_t sz)
 {
-	RaiseException(MzExceptionBaseCode + 2, 0, 0, nullptr);
+	RaiseException(MZ_EXCEPTION_BASE_CODE + 1, 0, 0, nullptr);
 	return 0;
 }
 #endif
@@ -46,23 +44,23 @@ int New_Handler(size_t sz)
 #if _MSC_VER >= 1400
 void InvalidParameter_Handler(const wchar_t *, const wchar_t *, const wchar_t *, unsigned int, uintptr_t)
 {
-	RaiseException(MzExceptionBaseCode + 3, 0, 0, nullptr);
+	RaiseException(MZ_EXCEPTION_BASE_CODE + 2, 0, 0, nullptr);
 }
 #endif
 
 void SigAbrt_Handler(int n)
 {
-	RaiseException(MzExceptionBaseCode + 4, 0, 0, nullptr);
+	RaiseException(MZ_EXCEPTION_BASE_CODE + 3, 0, 0, nullptr);
 }
 
 void Terminate_Handler()
 {
-	RaiseException(MzExceptionBaseCode + 5, 0, 0, nullptr);
+	RaiseException(MZ_EXCEPTION_BASE_CODE + 4, 0, 0, nullptr);
 }
 
 void Unexpected_Handler()
 {
-	RaiseException(MzExceptionBaseCode + 6, 0, 0, nullptr);
+	RaiseException(MZ_EXCEPTION_BASE_CODE + 5, 0, 0, nullptr);
 }
 
 LONG NTAPI Vectored_Handler(PEXCEPTION_POINTERS ExceptionInfo)

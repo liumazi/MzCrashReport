@@ -89,10 +89,30 @@ std::string ExceptionCodeToString(DWORD ecode)
 		EXCEPTION(INVALID_HANDLE)
 	}
 
+	switch (ecode)
+	{
+	case MZ_EXCEPTION_BASE_CODE + 0:
+		return "PureCall";
+
+	case MZ_EXCEPTION_BASE_CODE + 1:
+		return "New";
+
+	case MZ_EXCEPTION_BASE_CODE + 2:
+		return "InvalidParameter";
+
+	case MZ_EXCEPTION_BASE_CODE + 3:
+		return "SigAbrt";
+
+	case MZ_EXCEPTION_BASE_CODE + 4:
+		return "Terminate";
+
+	case MZ_EXCEPTION_BASE_CODE + 5:
+		return "Unexpected";
+	}
+
 	// If not one of the "known" exceptions, try to get the string
 	// from NTDLL.DLL's message table.
 	_tempBuffer[FormatMessageA(FORMAT_MESSAGE_IGNORE_INSERTS | FORMAT_MESSAGE_FROM_HMODULE, GetModuleHandleA("NTDLL.DLL"), ecode, 0, _tempBuffer, sizeof(_tempBuffer), 0)] = 0;
-
 	return _tempBuffer;
 }
 
