@@ -91,7 +91,7 @@ std::string ExceptionCodeToString(DWORD ecode)
 
 	// If not one of the "known" exceptions, try to get the string
 	// from NTDLL.DLL's message table.
-	FormatMessageA(FORMAT_MESSAGE_IGNORE_INSERTS | FORMAT_MESSAGE_FROM_HMODULE, GetModuleHandleA("NTDLL.DLL"), ecode, 0, _tempBuffer, sizeof(_tempBuffer), 0);
+	_tempBuffer[FormatMessageA(FORMAT_MESSAGE_IGNORE_INSERTS | FORMAT_MESSAGE_FROM_HMODULE, GetModuleHandleA("NTDLL.DLL"), ecode, 0, _tempBuffer, sizeof(_tempBuffer), 0)] = 0;
 
 	return _tempBuffer;
 }
