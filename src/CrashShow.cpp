@@ -1017,7 +1017,7 @@ void DoCrashShow(PEXCEPTION_POINTERS eps)
 {
 	if (!eps)
 	{
-		MessageBoxA(GetActiveWindow(), "Invaild eps.", CRASH_MSGBOX_CAPTION, 0);
+		MessageBoxA(GetActiveWindow(), "Invaild eps.", MZ_CRASH_MSGBOX_CAPTION, 0);
 	}
 
 	_hCurrentProcess = GetCurrentProcess();
@@ -1029,7 +1029,7 @@ void DoCrashShow(PEXCEPTION_POINTERS eps)
 	std::string logFileName = curFileName + ".log";
 	WriteCrashLog(logFileName, eps);
 
-	MessageBoxA(GetActiveWindow(), "Click OK to open the crash log file.", CRASH_MSGBOX_CAPTION, 0);
+	MessageBoxA(GetActiveWindow(), "Click OK to open the crash log file.", MZ_CRASH_MSGBOX_CAPTION, 0);
 
 	ShellExecuteA(0, "open", "explorer.exe", ("/select," + logFileName).c_str(), nullptr, SW_SHOWNORMAL);
 }
