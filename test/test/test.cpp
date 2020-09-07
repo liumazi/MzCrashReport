@@ -126,7 +126,11 @@ int fun10(int n)
 	if (n > 0)
 	{
 		return fun10(n - 1) + x;
-	}	
+	}
+	else
+	{
+		return 0;
+	}
 }
 
 void fun11()
@@ -165,7 +169,7 @@ int _tmain(int argc, _TCHAR* argv[])
 {
 	InitCrashReport();
 
-	int crashno = 11; // _tstoi(argv[1]);
+	int crashno = 12; // _tstoi(argv[1]);
 	printf("_tmain, crashno %d\r\n", crashno);
 
 	switch (crashno)
