@@ -10,46 +10,49 @@
 
 #pragma pack (push, ehdata, 4)
 
-typedef struct _PMD
+struct MSVC_PMD
 {
 	int mdisp;
 	int pdisp;
 	int vdisp;
-} _PMD;
+};
 
-typedef void(*_PMFN) (void);
+typedef void(*MSVC_PMFN) (void);
 
 #pragma warning (disable:4200)
 #pragma pack (push, _TypeDescriptor, 8)
-typedef struct _TypeDescriptor
+struct MSVC_TypeDescriptor
 {
 	const void *pVFTable;
 	void *spare;
 	char name[];
-} _TypeDescriptor;
+};
 #pragma pack (pop, _TypeDescriptor)
 #pragma warning (default:4200)
 
-typedef const struct _s__CatchableType {
+struct MSVC_CatchableType
+{
 	unsigned int properties;
-	_TypeDescriptor *pType;
-	_PMD thisDisplacement;
+	MSVC_TypeDescriptor *pType;
+	MSVC_PMD thisDisplacement;
 	int sizeOrOffset;
-	_PMFN copyFunction;
-} _CatchableType;
+	MSVC_PMFN copyFunction;
+};
 
 #pragma warning (disable:4200)
-typedef const struct _s__CatchableTypeArray {
+struct MSVC_CatchableTypeArray
+{
 	int nCatchableTypes;
-	_CatchableType *arrayOfCatchableTypes[];
-} _CatchableTypeArray;
+	MSVC_CatchableType *arrayOfCatchableTypes[];
+};
 #pragma warning (default:4200)
 
-typedef const struct _s__ThrowInfo {
+struct MSVC_ThrowInfo
+{
 	unsigned int attributes;
-	_PMFN pmfnUnwind;
+	MSVC_PMFN pmfnUnwind;
 	int(__cdecl *pForwardCompat) (...);
-	_CatchableTypeArray *pCatchableTypeArray;
-} _ThrowInfo;
+	MSVC_CatchableTypeArray *pCatchableTypeArray;
+};
 
 #pragma pack (pop, ehdata)
