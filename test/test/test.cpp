@@ -114,7 +114,7 @@ int fun9(int b)
 	return 66;
 }
 
-void fun10(int n)
+int fun10(int n)
 {
 	int b[1024*1024];
 	int x = 0;
@@ -125,7 +125,7 @@ void fun10(int n)
 
 	if (n > 0)
 	{
-		fun10(n - 1);
+		return fun10(n - 1) + x;
 	}	
 }
 
@@ -141,12 +141,32 @@ void fun11()
 	}	
 }
 
+class MzException
+{
+	int e_arr[2];
+	std::string e_str;
+};
+
+void fun12()
+{
+	MzException a;
+
+	try
+	{
+		throw a;
+	}
+	catch (std::exception)
+	{
+		printf("fun12 catch\r\n");
+	}
+}
+
 int _tmain(int argc, _TCHAR* argv[])
 {
 	InitCrashReport();
 
 	int crashno = 11; // _tstoi(argv[1]);
-	printf("crashno %d\r\n", crashno);
+	printf("_tmain, crashno %d\r\n", crashno);
 
 	switch (crashno)
 	{
@@ -195,16 +215,22 @@ int _tmain(int argc, _TCHAR* argv[])
 		break;
 
 	case 10:
-		fun10(6);
+		printf("_tmain, fun10 %d\r\n", fun10(6));
 		break;
 
 	case 11:
 		fun11();
 		break;
 
+	case 12:
+		fun12();
+		break;
+
 	default:
 		break;
 	}
+
+	printf("_tmain, end\r\n");
 
 	return 0;
 }
