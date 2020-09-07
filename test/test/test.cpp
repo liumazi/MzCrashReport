@@ -145,7 +145,7 @@ int _tmain(int argc, _TCHAR* argv[])
 {
 	InitCrashReport();
 
-	int crashno = 10; // _tstoi(argv[1]);
+	int crashno = 11; // _tstoi(argv[1]);
 	printf("crashno %d\r\n", crashno);
 
 	switch (crashno)
@@ -160,36 +160,47 @@ int _tmain(int argc, _TCHAR* argv[])
 
 	case 1:
 		fun1();
+		break;
 
 	case 2:
 		fun2();
+		break;
 
 	case 3:
 		fun3();
+		break;
 
 	case 4:
 		fun4();
+		break;
 
 	case 5:
 		fun5();
+		break;
 
 	case 6:
 		fun6();
+		break;
 
 	case 7:
 		fun7();
+		break;
 
 	case 8:
 		fun8();
+		break;
 
 	case 9:
 		fun9(0);
+		break;
 
 	case 10:
 		fun10(6);
+		break;
 
 	case 11:
 		fun11();
+		break;
 
 	default:
 		break;
