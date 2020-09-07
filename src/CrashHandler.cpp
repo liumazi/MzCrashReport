@@ -66,7 +66,7 @@ void Unexpected_Handler()
 LONG NTAPI Vectored_Handler(PEXCEPTION_POINTERS ExceptionInfo)
 {
 	MessageBoxA(0, "Vectored_Handler", MZ_CRASH_MSGBOX_CAPTION, 0);
-
+	
 	if (ExceptionInfo)
 	{
 		DWORD exceptionCode = ExceptionInfo->ExceptionRecord->ExceptionCode;

@@ -12,6 +12,7 @@
 #include "CrashUtils.h"
 #include "CrashLog.h"
 #include "CrashConst.h"
+#include "CrashEHData.h"
 
 #define MAX_SYM_NAME_LEN 1024
 
@@ -60,7 +61,7 @@ bool WriteCrashDmp(const std::string& filename, PEXCEPTION_POINTERS eps)
 }
 
 // 异常码转字符串
-std::string ExceptionCodeToString(DWORD ecode)
+std::string ExceptionCodeToString(DWORD ecode, MSVC_ThrowInfo* einfo)
 {
 #define EXCEPTION(x) case EXCEPTION_##x: return (#x);
 	switch (ecode)
@@ -108,6 +109,20 @@ std::string ExceptionCodeToString(DWORD ecode)
 
 	case MZ_EXCEPTION_BASE_CODE + 5:
 		return "Unexpected";
+	}
+
+	if (ecode == 0xE06D7363) // CppException
+	{
+		std::string ret = "CppException { ";
+
+		for (int i = 0; i < einfo->pCatchableTypeArray->nCatchableTypes; i++)
+		{
+			ret += einfo->pCatchableTypeArray->arrayOfCatchableTypes[i]->pType->name;
+			ret += "; ";
+		}
+
+		ret += "}";
+		return ret;
 	}
 
 	// If not one of the "known" exceptions, try to get the string
@@ -964,9 +979,11 @@ bool WriteCrashLog(const std::string& filename, PEXCEPTION_POINTERS eps)
 	AppendCrashLog("=               MzCrashReport v0.1                   =\r\n");
 	AppendCrashLog("======================================================\r\n\r\n");
 
-	_tempBuffer[0] = 0;
 	DWORD code = eps->ExceptionRecord->ExceptionCode;
 	PVOID addr = eps->ExceptionRecord->ExceptionAddress;
+	ULONG_PTR* ExceptionInformation = eps->ExceptionRecord->ExceptionInformation;
+
+	_tempBuffer[0] = 0;
 	MEMORY_BASIC_INFORMATION mbi;
 	if (VirtualQuery(addr, &mbi, sizeof(mbi)))
 	{
@@ -983,7 +1000,6 @@ bool WriteCrashLog(const std::string& filename, PEXCEPTION_POINTERS eps)
 
 	if (code == EXCEPTION_ACCESS_VIOLATION)
 	{
-		ULONG_PTR* ExceptionInformation = eps->ExceptionRecord->ExceptionInformation;
 		if (ExceptionInformation[0])
 		{
 			AppendCrashLog("Failed to write address 0x%08X\r\n", ExceptionInformation[1]);
@@ -995,7 +1011,9 @@ bool WriteCrashLog(const std::string& filename, PEXCEPTION_POINTERS eps)
 	}
 	AppendCrashLog("\r\n");
 
-	AppendCrashLog("ExceptionCode: 0x%08X (%s)\r\n\r\n", code, ExceptionCodeToString(code).c_str());
+	AppendCrashLog("ExceptionCode: 0x%08X (%s)\r\n\r\n", code, ExceptionCodeToString(code, (MSVC_ThrowInfo*)ExceptionInformation[2]).c_str());
+	
+	AppendCrashLog("NumberParameters: %d\r\n\r\n", eps->ExceptionRecord->NumberParameters);
 
 	AppendCrashLog(("Call Stack:\r\n------------------------------------------------------\r\n"));
 
