@@ -88,10 +88,7 @@ std::string ExceptionCodeToString(DWORD ecode, MSVC_ThrowInfo* einfo)
 		EXCEPTION(INVALID_DISPOSITION)
 		EXCEPTION(GUARD_PAGE)
 		EXCEPTION(INVALID_HANDLE)
-	}
 
-	switch (ecode)
-	{
 	case MZ_EXCEPTION_BASE_CODE + 0:
 		return "PureCall";
 
@@ -109,20 +106,21 @@ std::string ExceptionCodeToString(DWORD ecode, MSVC_ThrowInfo* einfo)
 
 	case MZ_EXCEPTION_BASE_CODE + 5:
 		return "Unexpected";
-	}
 
-	if (ecode == 0xE06D7363) // CppException
-	{
+	case 0xE06D7363:
+		{
 		std::string ret = "CppException { ";
 
 		for (int i = 0; i < einfo->pCatchableTypeArray->nCatchableTypes; i++)
 		{
+			ret += "[" + std::to_string(i) + "] = ";
 			ret += einfo->pCatchableTypeArray->arrayOfCatchableTypes[i]->pType->name;
 			ret += "; ";
 		}
 
 		ret += "}";
 		return ret;
+		}
 	}
 
 	// If not one of the "known" exceptions, try to get the string
